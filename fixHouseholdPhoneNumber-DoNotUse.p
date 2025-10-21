@@ -4,11 +4,11 @@
 
     Syntax      : 
 
-    Description : Sync Household Phone Number from Primary Guardian Number
+    Description : Sync Account Phone Number from Primary Guardian Number
 
     Author(s)   : michaelzr
-    Created     : 4/19/2024; modified from syncHHPhoneToPrimaryGuardian.p on 10/30/2024
-    Notes       : Syncing from Primary Guardian to Household due to an error in a household import
+    Created     : 4/19/2024; modified from syncAccountPhoneToPrimaryGuardian.p on 10/30/2024
+    Notes       : Syncing from Primary Guardian to Account due to an error in a account import
     
     THIS WORKED, TECHNICALLY, BUT DIDN'T DO WHAT I WANTED IT TO DO, SO I'M SCRAPPING IT AND STARTING OVER
           
@@ -50,7 +50,7 @@ assign
     
 // EVERYTHING ELSE
 
-define variable hhID                  as int64     no-undo.
+define variable accountID                  as int64     no-undo.
 define variable personID              as int64     no-undo.
 define variable fmPhoneNum            as character no-undo.
 define variable fmPhoneType           as character no-undo.
@@ -58,7 +58,7 @@ define variable fmPhoneExt            as character no-undo.
 define variable numUntoggledHHPrimary as integer   no-undo.
 
 assign 
-    hhID                  = 0
+    accountID                  = 0
     personID              = 0
     fmPhoneNum            = ""
     fmPhoneType           = ""
@@ -75,7 +75,7 @@ run put-stream ("Record ID,Table,Member ID,First Name,Last Name,Original Phone N
 // SYNC MEMBER EMAIL WITH ACCOUNT IF OUT OF SYNC
 for each Relationship no-lock where Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
     assign 
-        hhID        = 0
+        accountID        = 0
         personID    = 0
         fmPhoneNum  = ""
         fmPhoneType = ""
@@ -85,7 +85,7 @@ for each Relationship no-lock where Relationship.ChildTable = "Member" and Relat
     if available Member and Member.PrimaryPhoneNumber <> "" and (Member.PrimaryPhoneNumber <> Account.PrimaryPhoneNumber or (Member.PrimaryPhoneNumber = Account.PrimaryPhoneNumber and (Member.PrimaryPhoneType <> Account.PrimaryPhoneType or Member.PrimaryPhoneExtension <> Account.PrimaryPhoneExtension))) then 
     do:
         assign
-            hhID        = Account.ID
+            accountID        = Account.ID
             personID    = Member.ID
             fmPhoneNum  = getString(Member.PrimaryPhoneNumber)
             fmPhoneType = if fmPhoneNum = "" then "" else getString(Member.PrimaryPhoneType)
@@ -250,7 +250,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Sync Household Phone Number from Primary Guardian Number"
+            BufActivityLog.Detail1       = "Sync Account Phone Number from Primary Guardian Number"
             BufActivityLog.Detail2       = "Check Document Center for fixHouseholdPhoneNumberLog for a log of Records Changed"
             BufActivityLog.Detail3       = "Number of Account Records Adjusted: " + string(hhPhoneRecs)
             BufActivityLog.Detail4       = "Number of PhoneNumber Records Adjusted: " + string(phoneRecs) 

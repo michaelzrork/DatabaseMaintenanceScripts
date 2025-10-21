@@ -12,7 +12,7 @@ assign
     skipHouseholds        = "999999999"
     defaultLastActiveDate = 02/01/2021.
     
-/* FIND ALL INTERNAL AND MODEL HOUSEHOLDS */
+/* FIND ALL INTERNAL AND MODEL ACCOUNTS */
 profilefield-loop:
 for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" or CustomField.FieldName begins "ModelHousehold":
     if getString(CustomField.FieldValue) = "" then next profilefield-loop.
@@ -21,19 +21,19 @@ for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" o
     end. 
 end.
 
-/* MAIN HOUSEHOLD LOOP */
-household-loop:
+/* MAIN ACCOUNT LOOP */
+account-loop:
 for each Account no-lock 
     where Account.LastActiveDate = ?:
         
-    /* IF THE HOUSEHOLD IS THE GUEST HOUSEHOLD OR AN INTERNAL OR MODEL HOUSEHOLD, SKIP */
-    if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next household-loop.
+    /* IF THE ACCOUNT IS THE GUEST ACCOUNT OR AN INTERNAL OR MODEL ACCOUNT, SKIP */
+    if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next account-loop.
 
-    /* RESET NEW LAST ACTIVE DATE VARIABLE BETWEEN HOUSEHOLDS */
+    /* RESET NEW LAST ACTIVE DATE VARIABLE BETWEEN ACCOUNTS */
     assign 
         newLastActiveDate = ?.
         
-    /* INITIALIZE LAST ACTIVE DATE AS HOUSEHOLD CREATION DATE */
+    /* INITIALIZE LAST ACTIVE DATE AS ACCOUNT CREATION DATE */
     if Account.CreationDate <> ? then
         assign 
             newLastActiveDate = Account.CreationDate.
@@ -48,7 +48,7 @@ for each Account no-lock
             assign newLastActiveDate = TransactionDetail.TransactionDate.
     end.
     
-    /* CHECK HOUSEHOLD UPDATES FOR A MORE RECENT DATE */
+    /* CHECK ACCOUNT UPDATES FOR A MORE RECENT DATE */
     for each ActivityLog no-lock where (ActivityLog.Detail1 = "Account Update" or ActivityLog.Detail1 = "Account Add") and ActivityLog.Detail2 = string(Account.ID):
         if newLastActiveDate = ? or ActivityLog.LogDate > newLastActiveDate then assign newLastActiveDate = ActivityLog.LogDate.
     end.

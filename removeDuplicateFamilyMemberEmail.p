@@ -46,21 +46,21 @@ numEmailsDeleted = 0.
 // CREATE LOG FILE FIELDS
 run put-stream ("Member.ID,Member.PrimaryEmailAddress,EmailContact.ID,EmailContact.EmailAddress").
 
-// LOOP THROUGH HOUSEHOLDS
+// LOOP THROUGH ACCOUNTS
 householdLoop:
 for each Account no-lock:
     
-    // SET HOUSEHOLD EMAIL FOR EASY REFERENCE
+    // SET ACCOUNT EMAIL FOR EASY REFERENCE
     householdEmail = Account.PrimaryEmailAddress.
     
-    // IF THE HOUSEHOLD EMAIL IS BLANK, SKIP RECORD
+    // IF THE ACCOUNT EMAIL IS BLANK, SKIP RECORD
     if householdEmail = "" or householdEmail = ? then next householdLoop.
     
-    // FIND ALL FAMILY MEMBERS IN THE HOUSEHOLD THAT ARE NOT SET AS PRIMARY
+    // FIND ALL FAMILY MEMBERS IN THE ACCOUNT THAT ARE NOT SET AS PRIMARY
     RelationshipLoop:
-    for each Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.ChildTable = "Member" and Relationship.Primary = false and Relationship.RecordType = "Household":
+    for each Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.ChildTable = "Member" and Relationship.Primary = false and Relationship.RecordType = "Account":
         
-        // CHECK TO SEE IF FAMILY MEMBER IS PRIMARY IN ANOTHER HOUSEHOLD
+        // CHECK TO SEE IF FAMILY MEMBER IS PRIMARY IN ANOTHER ACCOUNT
         primaryCheck = false.
         run checkForPrimary(Relationship.ChildTableID).
         if primaryCheck = true then next RelationshipLoop.
@@ -94,11 +94,11 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// CHECK IF PRIMARY IN ANOTHER HOUSEHOLD
+// CHECK IF PRIMARY IN ANOTHER ACCOUNT
 procedure checkForPrimary:
     define input parameter inpid as int64 no-undo.
     define buffer bufRelationship for Relationship.
-    if can-find(first bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.Primary = true and Relationship.RecordType = "Household") then primaryCheck = true.
+    if can-find(first bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.Primary = true and Relationship.RecordType = "Account") then primaryCheck = true.
 end procedure.
 
 // REMOVE THE DUPLICATE EMAIL ADDRESS
@@ -166,7 +166,7 @@ procedure ActivityLog:
             bufActivityLog.LogDate       = today
             bufActivityLog.UserName      = "SYSTEM"
             bufActivityLog.LogTime       = time
-            bufActivityLog.Detail1       = "Remove email addresses for family members that match the household primary guardian"
+            bufActivityLog.Detail1       = "Remove email addresses for family members that match the account primary guardian"
             bufActivityLog.Detail2       = "Number of Member emails removed: " + string(numEmailsCleared)
             bufActivityLog.Detail3       = "Number of EmailContact records removed: " + string(numEmailsDeleted).
     end.

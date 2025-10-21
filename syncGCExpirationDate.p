@@ -48,7 +48,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("ID,Gift Certificate Code,Gift Certificate Number,Household,Amount Issued,Amount Used,Issue Date,Original Expiration Date,New Expiration Date,").
+run put-stream ("ID,Gift Certificate Code,Gift Certificate Number,Account,Amount Issued,Amount Used,Issue Date,Original Expiration Date,New Expiration Date,").
 
 for each VoucherDetail no-lock where VoucherDetail.Redeemed = no:
     find first PSServiceItem no-lock where PSServiceItem.ServiceItem = VoucherDetail.ServiceItem no-error no-wait.
@@ -88,7 +88,7 @@ procedure syncExpirationDate:
                 /*Gift Certificate Number*/
                 getString(string(bufVoucherDetail.Number))
                 + "~",~"" +
-                /*Household*/
+                /*Account*/
                 getString(string(bufVoucherDetail.EntityNumber))
                 + "~",~"" +
                 /*Amount Issued*/

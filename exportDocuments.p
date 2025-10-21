@@ -39,7 +39,7 @@ assign
 
 os-create-dir value(sessionTemp() + "DocumentExport\").
 
-for each BinaryFile no-lock where BinaryFile.FileName = "\Household Documents\10630251\CallowayQuinea102823SSRC-PRR.pdf":
+for each BinaryFile no-lock where BinaryFile.FileName = "\Account Documents\10630251\CallowayQuinea102823SSRC-PRR.pdf":
     run CleanFileName(entry(num-entries(BinaryFile.filename,"\"),sablobfile.filename,"\"), output URLName).
     assign
         FileExt  = GetFileExtension(BinaryFile.FileName)

@@ -18,8 +18,8 @@
 {Includes/Framework.i}
 {Includes/BusinessLogic.i}
 
-define variable hhID                     as int64     no-undo.
-define variable hhNum                    as integer   no-undo.
+define variable accountID                     as int64     no-undo.
+define variable accountNum                    as integer   no-undo.
 define variable originalRelationshipCode as character no-undo.
 define variable primaryGuardianCode      as character no-undo.
 define variable hhFirstName              as character no-undo.
@@ -67,7 +67,7 @@ assign
 run put-stream ("Table,Record ID,Record Details,").
 
 // Account LOOP
-household-loop:
+account-loop:
 for each Account no-lock:
     find first Relationship no-lock where Relationship.ParentTableID = Account.ID no-error no-wait.
     if not available Relationship then
@@ -142,7 +142,7 @@ procedure deleteMember:
     end.
 end.
 
-// DELETE ORPHAN HOUSEHOLD
+// DELETE ORPHAN ACCOUNT
 procedure deleteAccount:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
@@ -150,7 +150,7 @@ procedure deleteAccount:
         find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
         if available bufAccount then 
         do:
-            run put-stream ("Account" + "," + string(bufAccount.ID) + "," + "~"Household First Name: " + bufAccount.FirstName + ", Household Last Name: " + bufAccount.LastName + "~"" + ",").
+            run put-stream ("Account" + "," + string(bufAccount.ID) + "," + "~"Account First Name: " + bufAccount.FirstName + ", Account Last Name: " + bufAccount.LastName + "~"" + ",").
             numHHDeleted = numHHDeleted + 1.
             delete bufAccount.
         end. 

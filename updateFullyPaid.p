@@ -16,17 +16,17 @@
 *************************************************************************/
 
 define variable recNum as integer no-undo.
-define variable hhNum  as integer no-undo.
+define variable accountNum  as integer no-undo.
 
 assign
-    hhNum  = 10834
+    accountNum  = 10834
     recNum = 0.
 
 /*************************************************************************
                                 MAIN BLOCK
 *************************************************************************/
 
-for each TransactionDetail no-lock where TransactionDetail.EntityNumber = hhNum and TransactionDetail.FullyPaid = false:
+for each TransactionDetail no-lock where TransactionDetail.EntityNumber = accountNum and TransactionDetail.FullyPaid = false:
     run updateFullyPaid(TransactionDetail.ID).
 end.
 
@@ -59,6 +59,6 @@ procedure ActivityLog:
             bufActivityLog.LogTime       = time
             bufActivityLog.UserName      = "SYSTEM"
             bufActivityLog.Detail1       = "Update FullyPaid value from False to True"
-            bufActivityLog.Detail2       = "Number of TransactionDetail Records Adjusted for Household " + string(hhNum) + ": " + string(recNum).
+            bufActivityLog.Detail2       = "Number of TransactionDetail Records Adjusted for Account " + string(accountNum) + ": " + string(recNum).
     end.
 end procedure.

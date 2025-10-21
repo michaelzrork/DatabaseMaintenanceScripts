@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------
     File        : setActiveFamilyMemberToInactive_HHCheck.p
-    Purpose     : Set Family Members to Inactive when Household is Inactive
+    Purpose     : Set Family Members to Inactive when Account is Inactive
 
     Syntax      : 
 
@@ -23,7 +23,7 @@
 def var personID             as int64 no-undo.
 def var householdID          as int64 no-undo.
 def var secondaryHouseholdID as int64 no-undo.
-def var hhCheck              as char  no-undo.
+def var accountCheck              as char  no-undo.
 def var numRecords           as int   no-undo.
 numRecords = 0.
 
@@ -32,20 +32,20 @@ numRecords = 0.
 *************************************************************************/
 
 // RUNS THROUGH ALL INACTIVE HHs AND CHECKS FOR ACTIVE FMs
-household-loop:
+account-loop:
 for each Account no-lock where Account.RecordStatus = "Inactive":
     householdID = Account.ID.
-    familymember-loop:
+    member-loop:
     for each Relationship no-lock where Relationship.ParentTableID = householdID and Relationship.Childtable = "Member":
         personID = Relationship.ChildTableID.
         for first Member no-lock where Member.id = personID and Member.RecordStatus = "Active":
-            hhCheck = "continue".
+            accountCheck = "continue".
             run additionalHHCheck(Member.id).
-            if hhCheck = "skip" then next familymember-loop.
+            if accountCheck = "skip" then next member-loop.
             run setFMInactive (Member.id).
         end. /* FOR FIRST */
     end. /* FAMILYMEMBER-LOOP */
-end. /* END HOUSEHOLD LOOP */
+end. /* END ACCOUNT LOOP */
     
 run ActivityLog.
 
@@ -53,18 +53,18 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// CHECKS IF FM IS LINKED TO ADDITIONAL ACTIVE HHs
+// CHECKS IF Member IS LINKED TO ADDITIONAL ACTIVE HHs
 procedure additionalHHCheck:
     def input parameter inpid as int64 no-undo.
     def buffer bufRelationship for Relationship.
-    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> householdID and hhCheck = "continue":
+    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> householdID and accountCheck = "continue":
         secondaryHouseholdID = bufRelationship.ParentTableID.
-        if can-find(first Account where Account.ID = secondaryHouseholdID and Account.RecordStatus = "Active") then hhCheck = "skip".
+        if can-find(first Account where Account.ID = secondaryHouseholdID and Account.RecordStatus = "Active") then accountCheck = "skip".
     end. /* END FOR EACH */
 end procedure.
 
 
-// SETS FM TO INACTIVE
+// SETS Member TO INACTIVE
 procedure setFMInactive:
     def input parameter inpid as int64.
     def buffer bufMember for Member.
@@ -86,7 +86,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.LogTime       = time
-            BufActivityLog.Detail1       = "Set any Active Family Member of an Inactive Household to Inactive"
+            BufActivityLog.Detail1       = "Set any Active Family Member of an Inactive Account to Inactive"
             BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(numRecords).
     end. /* DO FOR */
 end procedure.

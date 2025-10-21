@@ -50,7 +50,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,Fee Order,ParentID,Item Description,CloneID,Fee ID,Fee Description,ReceiptNumber,RecordStatus,LogDate,UserName").
+run put-stream ("Account Number,Fee Order,ParentID,Item Description,CloneID,Fee ID,Fee Description,ReceiptNumber,RecordStatus,LogDate,UserName").
 
 fee-loop:
 for each Charge no-lock where Charge.RecordStatus = "Charge":

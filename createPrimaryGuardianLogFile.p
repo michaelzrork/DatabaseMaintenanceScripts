@@ -15,8 +15,8 @@
                                 DEFINITIONS
 *************************************************************************/
 
-define variable hhID as int64 no-undo.
-define variable hhNum                as integer   no-undo.
+define variable accountID as int64 no-undo.
+define variable accountNum                as integer   no-undo.
 define variable originalRelationship as character no-undo.
 define variable newRelationship      as character no-undo.
 define variable hhFirstName          as character no-undo.
@@ -50,15 +50,15 @@ numRecs = 0.
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Relationship ID,Household Number,Original Relationship Code,New Relationship Code,Household ID,Household First Name,Household Last Name,Person ID,Person First Name,Person Last Name").
+run put-stream ("Relationship ID,Account Number,Original Relationship Code,New Relationship Code,Account ID,Account First Name,Account Last Name,Person ID,Person First Name,Person Last Name").
 
 // MAIN PROGRAM GOES HERE
 for each Relationship no-lock where primary = true and relationship <> "Primary" and Relationship.ParentTable = "Account":
     assign 
-        hhID                 = Relationship.ParentTableID
+        accountID                 = Relationship.ParentTableID
         personID             = Relationship.ChildTableID
         originalRelationship = Relationship.Relationship
-        hhNum                = 0
+        accountNum                = 0
         hhFirstName          = ""
         hhLastName           = ""
         personFirstName      = ""
@@ -66,11 +66,11 @@ for each Relationship no-lock where primary = true and relationship <> "Primary"
     find first Account no-lock where Account.ID = Relationship.ParentTableID no-wait no-error.
     if available Account then 
         assign
-            hhNum       = Account.EntityNumber
+            accountNum       = Account.EntityNumber
             hhFirstName = Account.FirstName
             hhLastName  = Account.LastName.
     else assign
-            hhNum       = 0
+            accountNum       = 0
             hhFirstName = "No Account Record Available"
             hhLastName  = "No Account Record Available".
     find first Member no-lock where Member.ID = Relationship.ChildTableID no-wait no-error.
@@ -81,7 +81,7 @@ for each Relationship no-lock where primary = true and relationship <> "Primary"
     else assign
             personFirstName = "No Member Record Available"
             personLastName  = "No Member Record Available".
-    run put-stream (string(Relationship.ID) + "," + string(hhNum) + "," + originalRelationship + "," + newRelationship + "," + string(hhID) + "," + hhFirstName + "," + hhLastName + "," + string(personID) + "," + (if hhFirstName = personFirstName then "Name matches HH" else (if personFirstName = "" then "No Member First Name" else personFirstName)) + "," + (if hhLastName = personLastName then "Name matches HH" else (if personLastName = "" then "No Member Last Name" else personLastName))).
+    run put-stream (string(Relationship.ID) + "," + string(accountNum) + "," + originalRelationship + "," + newRelationship + "," + string(accountID) + "," + hhFirstName + "," + hhLastName + "," + string(personID) + "," + (if hhFirstName = personFirstName then "Name matches HH" else (if personFirstName = "" then "No Member First Name" else personFirstName)) + "," + (if hhLastName = personLastName then "Name matches HH" else (if personLastName = "" then "No Member Last Name" else personLastName))).
 end.
   
 // CREATE LOG FILE

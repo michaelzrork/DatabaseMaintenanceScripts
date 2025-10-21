@@ -8,7 +8,7 @@
 
     Author(s)   : michaelzrork
     Created     : 11/5/2024
-    Notes       : THIS IS UNNECESSARY - To do this fix within RecTrac, create a new Category then do a Code Conversion and merge that cat into the current res category
+    Notes       : THIS IS UNNECESSARY - To do this fix within RecPortal, create a new Category then do a Code Conversion and merge that cat into the current res category
   ----------------------------------------------------------------------*/
 
 /*************************************************************************
@@ -62,7 +62,7 @@ procedure changeCode:
     end.
 end procedure.
 
-// CHANGE HOUSEHOLD CATEGORY
+// CHANGE ACCOUNT CATEGORY
 procedure changeHHCat:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
@@ -99,7 +99,7 @@ procedure ActivityLog:
             bufActivityLog.UserName      = "SYSTEM"
             bufActivityLog.Detail1       = "Fix MailingAddress Resident Category"
             bufActivityLog.Detail2       = "Number of Address Records Adjusted: " + string(numRecs)
-            bufActivityLog.Detail3       = "Number of Household Records Adjusted: " + string(numHHRecs)
+            bufActivityLog.Detail3       = "Number of Account Records Adjusted: " + string(numHHRecs)
             bufActivityLog.Detail4       = "Number of Family Member Records Adjusted: " + string(numFMRecs).
             
     end.

@@ -1,24 +1,24 @@
 /*------------------------------------------------------------------------
-    File        : syncHHCategoryAndFeecodeByZip.p
+    File        : syncAccountCategoryAndFeecodeByZip.p
     Purpose     : 
 
     Syntax      : 
 
-    Description : Sync Household Category and Feecode by Zip Code
+    Description : Sync Account Category and Feecode by Zip Code
 
     Author(s)   : michaelzr
     Created     : 2/28/25
     Notes       : - This is a rewritten version of updateCategoryegoryandFeeCodebyZip that is intended to be a universal fix
                   - Unlike the original version, this will create a logfile of changed households and family members
-                  - Will skip updating Family Member categories and fee codes if the Household profile value is set to "Do Not Sync Family Members"
-                    (Profile Assignments > Household profile > "Family Member Option: If The Household Category Changes, On Save:")
+                  - Will skip updating Family Member categories and fee codes if the Account profile value is set to "Do Not Sync Family Members"
+                    (Profile Assignments > Account profile > "Family Member Option: If The Account Category Changes, On Save:")
                   - Will set the Non-Resident category to what the NoZipMatchCategory is set to
                     (Profile Assignments > Static Parameters > "Default Category If No Address Check Match")
                     - Will default to the NoZipMatchCategory when the category is missing, the zip code is missing, or the address record category cannot be found
                   - Will skip all Guest, Internal, and Model households
-                  - Before updating any familiy members where the household category matches the NoZipMatchCategory it will check if the family member
+                  - Before updating any familiy members where the account category matches the NoZipMatchCategory it will check if the family member
                     is in any Active, non-NoZipMatchCategory households; if they are, it will not update the family member since they will be updated to a Resident category
-                    when that household is run (we don't want to change family members back and forth, so we default to not the Non Res categories
+                    when that account is run (we don't want to change family members back and forth, so we default to not the Non Res categories
                     
                   Todo list:
                     - Add Teams logic and procedure
@@ -53,11 +53,11 @@ define variable numFMCatRecs       as integer   no-undo.
 define variable numHHFeecodeRecs   as integer   no-undo.
 define variable numFMFeecodeRecs   as integer   no-undo.
 define variable noZipMatchCategory as character no-undo.
-define variable hhCheck            as logical   no-undo.
-define variable hhID               as int64     no-undo.
-define variable hhNum              as integer   no-undo.
-define variable hhCategory         as character no-undo.
-define variable hhFeecodes         as character no-undo.
+define variable accountCheck            as logical   no-undo.
+define variable accountID               as int64     no-undo.
+define variable accountNum              as integer   no-undo.
+define variable accountCategory         as character no-undo.
+define variable accountFeecodes         as character no-undo.
 define variable fmID               as int64     no-undo.
 define variable fmCategory         as character no-undo.
 define variable fmFeecodes         as character no-undo.
@@ -72,10 +72,10 @@ assign
     numHHFeecodeRecs   = 0
     numFMFeecodeRecs   = 0
     noZipMatchCategory = TrueVal(ProfileChar("Static Parameters","NoZipMatchCategory"))
-    hhCheck            = no
-    hhID               = 0
-    hhNum              = 0
-    hhCategory         = ""
+    accountCheck            = no
+    accountID               = 0
+    accountNum              = 0
+    accountCategory         = ""
     hhFeeCodes         = ""
     fmID               = 0
     fmCategory         = ""
@@ -92,7 +92,7 @@ assign
 find first MailingAddress no-lock no-error no-wait.
 if not available MailingAddress then
 do:
-    run ActivityLog("Program Aborted","There are no MailingAddress records available. Cannot sync Household Category. Add addresses in Address Management and run this program again.","","").
+    run ActivityLog("Program Aborted","There are no MailingAddress records available. Cannot sync Account Category. Add addresses in Address Management and run this program again.","","").
     return.
 end.
 
@@ -112,7 +112,7 @@ do:
     return.
 end.
     
-/* FIND ALL INTERNAL AND MODEL HOUSEHOLDS */
+/* FIND ALL INTERNAL AND MODEL ACCOUNTS */
 profilefield-loop:
 for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" or CustomField.FieldName begins "ModelHousehold":
     if getString(CustomField.FieldValue) = "" then next profilefield-loop.
@@ -122,19 +122,19 @@ for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" o
 end.
 
 /* CREATE LOG FILE FIELD HEADERS */
-run put-stream ("Table,Record ID,Household Number,Zip Code,Original Category,New Category,Original Fee Code List,New Fee Code List,").
+run put-stream ("Table,Record ID,Account Number,Zip Code,Original Category,New Category,Original Fee Code List,New Fee Code List,").
 
-/* HOUSEHOLD LOOP */
+/* ACCOUNT LOOP */
 HH-loop:
 for each Account no-lock:
     
-    /* IF THE HOUSEHOLD IS THE GUEST HOUSEHOLD OR AN INTERNAL OR MODEL HOUSEHOLD, SKIP */
+    /* IF THE ACCOUNT IS THE GUEST ACCOUNT OR AN INTERNAL OR MODEL ACCOUNT, SKIP */
     if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next HH-loop.
     
     assign 
-        hhID        = Account.ID
-        hhNum       = Account.EntityNumber
-        hhCategory  = getString(Account.Category)
+        accountID        = Account.ID
+        accountNum       = Account.EntityNumber
+        accountCategory  = getString(Account.Category)
         hhFeeCodes  = getString(Account.CodeValue)
         newCategory = "".
         
@@ -162,25 +162,25 @@ for each Account no-lock:
         assign
             newCategory = noZipMatchCategory.
 
-    /* SYNC HH CATEGORY AND FEE CODES */          
-    if hhCategory <> newCategory then run syncHHCat(yes).
+    /* SYNC Account CATEGORY AND FEE CODES */          
+    if accountCategory <> newCategory then run syncHHCat(yes).
     else run syncHHCat(no).
    
     /* CHECK FAMILY MEMBER CATEGORY SYNC OPTION FROM PROFILE AND SKIP FAMILY MEMBER SYNC IF SET TO NOT SYNC */
-    if TrueVal(ProfileChar("Household","CategorySyncOption")) = "Do Not Sync Family Members" then next HH-loop.
+    if TrueVal(ProfileChar("Account","CategorySyncOption")) = "Do Not Sync Family Members" then next HH-loop.
     
     FM-loop:
-    for each Relationship no-lock where Relationship.ParentTableID = hhID and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
+    for each Relationship no-lock where Relationship.ParentTableID = accountID and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
         
-        /* RESET HH CHECK */
+        /* RESET Account CHECK */
         assign 
-            hhCheck = no.
+            accountCheck = no.
         
-        /* CHECK FAMILY MEMBER FOR ADDITIONAL HOUSEHOLDS IF A NON-RESIDENT CATEGORY */
+        /* CHECK FAMILY MEMBER FOR ADDITIONAL ACCOUNTS IF A NON-RESIDENT CATEGORY */
         if newCategory = noZipMatchCategory then run additionalHHCheck(Relationship.ChildTableID).
         
-        /* IF ANOTHER ACTIVE, RESIDENT HH IS FOUND, SKIP THIS FAMILY MEMBER */
-        if hhCheck = yes then next FM-loop.
+        /* IF ANOTHER ACTIVE, RESIDENT Account IS FOUND, SKIP THIS FAMILY MEMBER */
+        if accountCheck = yes then next FM-loop.
         
         /* FIND MEMBER RECORD TO CHECK CATEGORY AND FEE CODES */
         find first Member no-lock where Member.ID = Relationship.ChildTableID no-error no-wait.
@@ -205,13 +205,13 @@ do ixLog = 1 to inpfile-num:
 end.
 
 // CREATE AUDIT LOG RECORD
-run ActivityLog("Sync Household Category and Feecode by Zip Code","Check Document Center for syncHHCategoryAndFeecodeByZipLog for a log of Records Changed","Number of HH Categories updated: " + string(numHHCatRecs) + "; Number of HH Feecodes updated: " + string(numHHFeecodeRecs) + "; Number of FM Categories updated: " + string(numFMCatRecs) + "; Number of FM Feecodes updated: " + string(numFMFeecodeRecs),"").
+run ActivityLog("Sync Account Category and Feecode by Zip Code","Check Document Center for syncHHCategoryAndFeecodeByZipLog for a log of Records Changed","Number of Account Categories updated: " + string(numHHCatRecs) + "; Number of Account Feecodes updated: " + string(numHHFeecodeRecs) + "; Number of Member Categories updated: " + string(numFMCatRecs) + "; Number of Member Feecodes updated: " + string(numFMFeecodeRecs),"").
 
 /*************************************************************************
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-/* SYNC HOUSEHOLD CATEGORY AND FEECODE */
+/* SYNC ACCOUNT CATEGORY AND FEECODE */
 procedure syncHHCat:
     define input parameter updateCategory as logical no-undo.
     define variable oldCategory      as character no-undo.
@@ -225,7 +225,7 @@ procedure syncHHCat:
     define buffer bufAccount for Account.
     
     do for bufAccount transaction:
-        find first bufAccount exclusive-lock where bufAccount.ID = hhID no-error no-wait.
+        find first bufAccount exclusive-lock where bufAccount.ID = accountID no-error no-wait.
         if available bufAccount then 
         do: 
             assign
@@ -236,7 +236,7 @@ procedure syncHHCat:
                 feeCodesToRemove = ""
                 feeCodesToAdd    = "".
                             
-            /* UPDATE THE HOUSEHOLD CATEGORY */
+            /* UPDATE THE ACCOUNT CATEGORY */
             if updateCategory then 
             do: 
                 assign
@@ -296,10 +296,10 @@ procedure syncHHCat:
                     "Account"
                     + "~",~"" +
                     /*Record ID*/
-                    getString(string(hhID))
+                    getString(string(accountID))
                     + "~",~"" +
-                    /*Household Number*/
-                    getString(string(hhNum))
+                    /*Account Number*/
+                    getString(string(accountNum))
                     + "~",~"" +
                     /*Zip Code*/
                     getString(string(bufAccount.PrimaryZipCode))
@@ -346,7 +346,7 @@ procedure syncFMCat:
                 feeCodesToRemove = ""
                 feeCodesToAdd    = "".
                             
-            /* UPDATE THE HOUSEHOLD CATEGORY */
+            /* UPDATE THE ACCOUNT CATEGORY */
             if updateCategory then 
             do: 
                 assign
@@ -408,8 +408,8 @@ procedure syncFMCat:
                     /*Record ID*/
                     getString(string(fmID))
                     + "~",~"" +
-                    /*Household Number*/
-                    getString(string(hhNum))
+                    /*Account Number*/
+                    getString(string(accountNum))
                     + "~",~"" +
                     /*Zip Code*/
                     (if getString(bufMember.PrimaryZipCode) <> "" then getString(string(bufMember.PrimaryZipCode)) else getString(Account.PrimaryZipCode))
@@ -431,15 +431,15 @@ procedure syncFMCat:
     end.
 end procedure.
 
-/* ADDITIONAL HOUSEHOLD CHECK */
+/* ADDITIONAL ACCOUNT CHECK */
 procedure additionalHHCheck:
     define input parameter inpid as int64 no-undo.
     define buffer bufRelationship      for Relationship.
     define buffer bufAccount for Account.
-    /* LOOK FOR PERSON IN ANY OTHER HOUSEHOLD */
-    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> hhID while hhCheck = no:
-        /* IF ADDITIONAL ACTIVE HOUSEHOLD IS FOUND THAT IS NOT A NON-RES HH, SKIP THIS PERSON AS THEY WILL BE UPDATED WITH THAT HH */ 
-        if can-find(first bufAccount where bufAccount.ID = bufRelationship.ParentTableID and bufAccount.Category <> noZipMatchCategory and bufAccount.RecordStatus = "Active") then hhCheck = yes.
+    /* LOOK FOR PERSON IN ANY OTHER ACCOUNT */
+    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> accountID while accountCheck = no:
+        /* IF ADDITIONAL ACTIVE ACCOUNT IS FOUND THAT IS NOT A NON-RES HH, SKIP THIS PERSON AS THEY WILL BE UPDATED WITH THAT Account */ 
+        if can-find(first bufAccount where bufAccount.ID = bufRelationship.ParentTableID and bufAccount.Category <> noZipMatchCategory and bufAccount.RecordStatus = "Active") then accountCheck = yes.
     end.
 end procedure.
 
@@ -472,7 +472,7 @@ procedure ActivityLog:
     do for BufActivityLog transaction:
         create BufActivityLog.
         assign
-            BufActivityLog.SourceProgram = "syncHHCategoryAndFeecodeByZip.r"
+            BufActivityLog.SourceProgram = "syncAccountCategoryAndFeecodeByZip.r"
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"

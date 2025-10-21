@@ -49,7 +49,7 @@ if available CustomField then assign ClientCode = CustomField.FieldValue.
 
 /* RUN IN DEMO ONLY - IF NOT DEMO, WRITES A WARNING TO THE AUDIT LOG AND STOPS */
 /*find first CustomField no-lock where CustomField.FieldName = "Organization" no-error no-wait.                                                       */
-/*if available CustomField and CustomField.FieldValue <> "!!! RecTrac TRAINING DATABASE !!!" then                                                     */
+/*if available CustomField and CustomField.FieldValue <> "!!! RecPortal TRAINING DATABASE !!!" then                                                     */
 /*do:                                                                                                                                                       */
 /*    run ActivityLog("Program Aborted; Not a DEMO Database!",                                                                                                 */
 /*    "This program is intended to be used in DEMO only and it looks like you are in a LIVE database. Please head to your DEMO and try running this again.",*/

@@ -3,7 +3,7 @@
 *************************************************************************/
 
 &global-define ProgramName "bulkSendWebInvite" /* PRINTS IN AUDIT LOG AND USED FOR LOGFILE NAME */
-&global-define ProgramDescription "Bulk send Web Invites to all users without WebTrac logins"  /* PRINTS IN AUDIT LOG WHEN INCLUDED AS INPUT PARAMETER */
+&global-define ProgramDescription "Bulk send Web Invites to all users without WebPortal logins"  /* PRINTS IN AUDIT LOG WHEN INCLUDED AS INPUT PARAMETER */
     
 /*----------------------------------------------------------------------
 
@@ -66,7 +66,7 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-/* FIND ALL INTERNAL AND MODEL HOUSEHOLDS */
+/* FIND ALL INTERNAL AND MODEL ACCOUNTS */
 profilefield-loop:
 for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" or CustomField.FieldName begins "ModelHousehold":
     if getString(CustomField.FieldValue) = "" then next profilefield-loop.
@@ -77,7 +77,7 @@ end.
 
 /* CREATE LOG FILE FIELD HEADERS */
 run put-stream (
-    "Household Number," +
+    "Account Number," +
     "HH Creation Date," +
     "HH Last Active Date," +
     "Person ID," +
@@ -87,7 +87,7 @@ run put-stream (
     "Email Address," +
     "Email Verified," +
     "Email Opted In," +
-    "WebTrac Username," +
+    "WebPortal Username," +
     "Has Web Account," +
     "Has Web Access," +
     "Has Web Invites," +
@@ -96,14 +96,14 @@ run put-stream (
     "Permissions Added?," +
     "Invite Sent?,").
     
-/* HOUSEHOLD LOOP */   
+/* ACCOUNT LOOP */   
 hh-loop:
 for each Account no-lock where Account.RecordStatus = "Active":
     
-    /* SKIP GUEST AND ALL INTERNAL AND MODEL HOUSEHOLDS */
+    /* SKIP GUEST AND ALL INTERNAL AND MODEL ACCOUNTS */
     if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next hh-loop.
    
-    /* LOOP THROUGH ALL MEMBERS OF THE HOUSEHOLD */
+    /* LOOP THROUGH ALL MEMBERS OF THE ACCOUNT */
     member-loop:
     for each Relationship no-lock where Relationship.ParentTable = "Account"
         and Relationship.ParentTableID = Account.ID
@@ -114,9 +114,9 @@ for each Account no-lock where Account.RecordStatus = "Active":
         if not available Member or Member.RecordStatus <> "Active" or isEmpty(Member.PrimaryEmailAddress) then next member-loop.
 
         assign
-            oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
+            oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE ACCOUNT OBJECT */
             oPersonBO          = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE RELATIONSHIP OBJECT */
+            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Account)  /* GRABS THE RELATIONSHIP OBJECT */
             permissionsUpdated = no
             inviteSent         = no.
         
@@ -151,7 +151,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
     
         /* LOG CHANGES */
         if permissionsUpdated or inviteSent then run put-stream("~"" +
-                /*Household Number*/
+                /*Account Number*/
                 string(oHouseholdBO:HouseholdNumber)
                 + "~",~"" +
                 /*HH Creation Date*/
@@ -181,7 +181,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
                 /*Email Opted In*/
                 (if oPersonBO:GetPrimaryEmailOptedIn() then "Yes" else "No")
                 + "~",~"" +
-                /*WebTrac Username*/
+                /*WebPortal Username*/
                 (if oPersonBO:WebUserName:UserName = "" then "None" else oPersonBO:WebUserName:UserName)
                 + "~",~"" +
                 /*Has Web Account*/
@@ -206,7 +206,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
                 (if permissionsUpdated then "Account Management Permissions Added" else "")
                 + "~",~"" +
                 /*Invite Sent?*/
-                (if inviteSent then "WebTrac Invite Email Sent" else "")
+                (if inviteSent then "WebPortal Invite Email Sent" else "")
                 + "~",").
     end.
 end.

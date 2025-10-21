@@ -51,18 +51,18 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("Notes,Household ID,Household Number,Household Name,Family Member ID,Family Member Name,Relationship ID,Relationship Order").
+run put-stream ("Notes,Account ID,Account Number,Account Name,Family Member ID,Family Member Name,Relationship ID,Relationship Order").
 
-household-loop:
+account-loop:
 for each Account no-lock:
     assign
         personName    = "" 
         householdName = ""
         householdName = trim((if Account.FirstName = "" then "" else Account.FirstName + " ") + Account.LastName).
-    if householdName = "" then householdName = "No Household Name; Organization Name: " + Account.OrganizationName.
+    if householdName = "" then householdName = "No Account Name; Organization Name: " + Account.OrganizationName.
         
     for first Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.Primary = true and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
-        next household-loop.
+        next account-loop.
     end.
     
     if not available Relationship then 
@@ -75,7 +75,7 @@ for each Account no-lock:
                 if personName = "" then "No Person Name".
                 
                 run setPrimaryGuardian(Relationship.ID).
-                next household-loop.
+                next account-loop.
             end.
             // IF WE CAN'T FIND THE MEMBER RECORD, LET'S LOG IT AS AN ORPHANED RECORD IN CASE WE NEED TO LOOK INTO SOMETHING FURTHER
             if not available Member then 
@@ -89,7 +89,7 @@ for each Account no-lock:
         end.
         // IF WE GET HERE THERE WAS NO FAMILY MEMBER NAME MATCH AND WE SHOULD LOG IT AS NO UPDATED PRIMARY GUARDIAN
         if personName = "" then "No Person Name Match".
-        run put-stream ("~"" + "Household has no family members with a name match; update the Primary Guardian manually with Household Management" + "~",~"" + string(Account.ID) + "~",~"" + string(Account.EntityNumber) + "~",~"" + householdName + "~",~"" + string(Member.ID) + "~",~"" + personName + "~",~"" + string(Relationship.ID) + "~",~"" + string(Relationship.Order) + "~",").
+        run put-stream ("~"" + "Account has no family members with a name match; update the Primary Guardian manually with Account Management" + "~",~"" + string(Account.ID) + "~",~"" + string(Account.EntityNumber) + "~",~"" + householdName + "~",~"" + string(Member.ID) + "~",~"" + personName + "~",~"" + string(Relationship.ID) + "~",~"" + string(Relationship.Order) + "~",").
         numNoNameMatch = numNoNameMatch + 1.
     end.
 end. 
@@ -118,7 +118,7 @@ procedure setPrimaryGuardian:
             assign
                 bufRelationship.Primary = true
                 numRecs           = numRecs + 1.
-                // Household Name,Family Member ID,Family Member Name,Relationship ID,Relationship Order
+                // Account Name,Family Member ID,Family Member Name,Relationship ID,Relationship Order
             run put-stream ("~"" + "Updated to the Primary Guardian" + "~",~"" + string(Account.ID) + "~",~"" + string(Account.EntityNumber) + "~",~"" + householdName + "~",~"" + string(Member.ID) + "~",~"" + personName + "~",~"" + string(Relationship.ID) + "~",~"" + string(Relationship.Order) + "~",").
         end.
     end.

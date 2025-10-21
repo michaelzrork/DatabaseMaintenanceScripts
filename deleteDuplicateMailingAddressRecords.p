@@ -392,7 +392,7 @@ procedure deleteAddress:
     end.
 end procedure.
 
-/* UPDATE HOUSEHOLD ADDRESS */
+/* UPDATE ACCOUNT ADDRESS */
 procedure updateHouseholdAddress:
     define input parameter inpID as int64 no-undo.
     define input parameter newCode as character no-undo.

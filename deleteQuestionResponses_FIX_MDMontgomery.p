@@ -47,10 +47,10 @@ run ActivityLog.
 *************************************************************************/
 
 procedure findAndDeleteDuplicate:
-    define input parameter hhID as int64 no-undo.
+    define input parameter accountID as int64 no-undo.
     define input parameter origAnswerID as int64 no-undo.
     define buffer bufQuestionResponse for QuestionResponse.
-    for first bufQuestionResponse exclusive-lock where bufQuestionResponse.DetailLinkID = hhID and bufQuestionResponse.QuestionLinkID = origQuestionLinkID and bufQuestionResponse.ID <> origAnswerID:
+    for first bufQuestionResponse exclusive-lock where bufQuestionResponse.DetailLinkID = accountID and bufQuestionResponse.QuestionLinkID = origQuestionLinkID and bufQuestionResponse.ID <> origAnswerID:
         numAnswersDeleted = numAnswersDeleted + 1.
         delete bufQuestionResponse.
     end.

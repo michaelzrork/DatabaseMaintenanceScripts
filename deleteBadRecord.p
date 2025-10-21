@@ -7,7 +7,7 @@ for first Member exclusive-lock where Member.ID = 0:
     assign 
         numRecords = numRecords + 1.
     delete Member.
-end. /* END HOUSEHOLD LOOP */
+end. /* END ACCOUNT LOOP */
     
 run ActivityLog.
     

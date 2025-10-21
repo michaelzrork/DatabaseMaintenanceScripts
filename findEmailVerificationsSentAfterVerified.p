@@ -35,8 +35,8 @@ assign
 
 // EVERYTHING ELSE
 define variable numRecs      as integer   no-undo.
-define variable hhNum        as integer   no-undo.
-define variable hhID         as int64     no-undo.
+define variable accountNum        as integer   no-undo.
+define variable accountID         as int64     no-undo.
 define variable runDate      as date      no-undo.
 define variable fmName       as character no-undo.
 define variable personID     as int64     no-undo.
@@ -44,8 +44,8 @@ define variable hasSameEmail as logical   no-undo.
 
 assign
     numRecs      = 0
-    hhNum        = 0
-    hhID         = 0
+    accountNum        = 0
+    accountID         = 0
     personID     = 0
     fmName       = ""
     hasSameEmail = false
@@ -58,8 +58,8 @@ define buffer bufEmailContact for EmailContact.
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("Household ID
-                ,Household Number
+run put-stream ("Account ID
+                ,Account Number
                 ,Person ID
                 ,Name
                 ,Email Address
@@ -74,11 +74,11 @@ run put-stream ("Household ID
 for each EmailContact no-lock where EmailContact.Verified = true and EmailContact.ParentTable = "Member" and EmailContact.VerificationSentDate < today - 365:
     for first bufEmailContact no-lock where bufEmailContact.EmailAddress = EmailContact.EmailAddress and bufEmailContact.ParentTable = "Account" and bufEmailContact.MemberLinkID = EmailContact.MemberLinkID:
         assign 
-            hhID = bufEmailContact.ParentRecord.
+            accountID = bufEmailContact.ParentRecord.
         find first Account no-lock where Account.ID = bufEmailContact.ParentRecord no-error no-wait.
         if available Account then assign 
-                hhNum = Account.EntityNumber.
-        for each Relationship no-lock where Relationship.ParentTableID = hhID and Relationship.ChildTableID <> EmailContact.MemberLinkID while hasSameEmail = false:
+                accountNum = Account.EntityNumber.
+        for each Relationship no-lock where Relationship.ParentTableID = accountID and Relationship.ChildTableID <> EmailContact.MemberLinkID while hasSameEmail = false:
             find first Member no-lock where Member.PrimaryEmailAddress = EmailContact.EmailAddress no-error no-wait.
             if available Member then assign hasSameEmail = true.
         end.
@@ -88,9 +88,9 @@ for each EmailContact no-lock where EmailContact.Verified = true and EmailContac
         find first Relationship no-lock where Relationship.ChildTableID = EmailContact.MemberLinkID no-error no-wait.
         if available Relationship then find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
         if available Account then assign
-                hhID  = Account.ID
-                hhNum = Account.EntityNumber.
-        for each Relationship no-lock where Relationship.ParentTableID = hhID and Relationship.ChildTableID <> EmailContact.MemberLinkID while hasSameEmail = false:
+                accountID  = Account.ID
+                accountNum = Account.EntityNumber.
+        for each Relationship no-lock where Relationship.ParentTableID = accountID and Relationship.ChildTableID <> EmailContact.MemberLinkID while hasSameEmail = false:
             find first Member no-lock where Member.PrimaryEmailAddress = EmailContact.EmailAddress no-error no-wait.
             if available Member then assign hasSameEmail = true.
         end.
@@ -105,10 +105,10 @@ for each EmailContact no-lock where EmailContact.Verified = true and EmailContac
             assign 
                 numrecs = numRecs + 1.
             run put-stream("~"" +
-                /*Household ID*/
-                getString(string(hhID)) + "~",~"" +
-                /*Household Number*/
-                getString(string(hhNum)) + "~",~"" +
+                /*Account ID*/
+                getString(string(accountID)) + "~",~"" +
+                /*Account Number*/
+                getString(string(accountNum)) + "~",~"" +
                 /*Person ID*/
                 getString(string(PersonID)) + "~",~"" +
                 /*Name*/

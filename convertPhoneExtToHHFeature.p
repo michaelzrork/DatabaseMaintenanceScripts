@@ -1,12 +1,12 @@
 /*------------------------------------------------------------------------
     File        : convertPhoneExtToHHFeature.p
-    Purpose     : TO TAKE THE VALUE IN THE PHONE EXT FIELD AND CONVERT IT TO A HH FEATURE
+    Purpose     : TO TAKE THE VALUE IN THE PHONE EXT FIELD AND CONVERT IT TO A Account FEATURE
 
     Syntax      :
 
     Description : THIS PROGRAM WAS WRITTEN FOR A VERY SPECIFIC USE CASE WHERE THE CUSTOMER
                   HAD BEEN KEEPING TRACK OF THE HOA FEES IN THE PHONE EXT FIELD AND WE WANTED
-                  TO CONVERT THAT VALUE TO A HH FEATURE SO WE COULD SET UP FEES WITH HH FEATURE
+                  TO CONVERT THAT VALUE TO A Account FEATURE SO WE COULD SET UP FEES WITH Account FEATURE
                   CRITERIA THAT WOULD LOOK AT THE FEATURE TO DETERMINE THE FEE, BUT WE NEEDED
                   TO CONVERT THE EXT TO THE FEATURE TO DO THIS
 
@@ -30,14 +30,14 @@ numRecords = 0.
                                 MAIN BLOCK
 *************************************************************************/
 
-household-loop: /* CHECK FOR HH FEATURE THAT MATCHES PHONE EXT AND ADD TO HOUSEHOLD IF NOT THERE */
+account-loop: /* CHECK FOR Account FEATURE THAT MATCHES PHONE EXT AND ADD TO ACCOUNT IF NOT THERE */
 for each Account no-lock where Account.PrimaryPhoneExtension <> "":
     priceCode = Account.PrimaryPhoneExtension.
-    for first LookupCode no-lock where LookupCode.RecordType = "Household Feature" and index(LookupCode.Description,priceCode) > 0:
+    for first LookupCode no-lock where LookupCode.RecordType = "Account Feature" and index(LookupCode.Description,priceCode) > 0:
         newHHFeature = LookupCode.RecordCode.
         if lookup(newHHFeature,Account.Features) = 0 then run addPriceCodeHHFeature(Account.ID).
     end. /* FOR FIRST */
-end. /* HOUSEHOLD-LOOP */    
+end. /* ACCOUNT-LOOP */    
 
 run ActivityLog.
 
@@ -45,7 +45,7 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-/* ADD RELATED HH FEATURE */
+/* ADD RELATED Account FEATURE */
 procedure addPriceCodeHHFeature:
     def input parameter inpid as int64.
     def var countVar as int no-undo.
@@ -69,7 +69,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.LogTime       = time
-            BufActivityLog.Detail1       = "Convert Phone Extension (Price Code) to Household Feature"
+            BufActivityLog.Detail1       = "Convert Phone Extension (Price Code) to Account Feature"
             BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(numRecords).
     end.
   

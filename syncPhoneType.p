@@ -52,9 +52,9 @@ assign
 run put-stream ("PhoneNumber.ID,Parent Table,Parent ID,MemberLinkID,Parent Table Phone Number,PhoneNumber PhoneNumber,Parent Table/New Phone Type,PhoneNumber/Original Phone Type,").
 
 for each Account no-lock where Account.PrimaryPhoneNumber <> "":
-    // SET A PHONE TYPE OF 'CELL' FOR ANY HOUSEHOLD PHONE NUMBER WITHOUT A TYPE
+    // SET A PHONE TYPE OF 'CELL' FOR ANY ACCOUNT PHONE NUMBER WITHOUT A TYPE
     if Account.PrimaryPhoneType = "" then run setHHPhoneType(Account.ID,"Cell").
-    // FIND ALL PRIMARY PHONE RECORDS FOR THE HOUSEHOLD AND COMPARE THE PHONE TYPE
+    // FIND ALL PRIMARY PHONE RECORDS FOR THE ACCOUNT AND COMPARE THE PHONE TYPE
     for each PhoneNumber no-lock where PhoneNumber.ParentRecord = Account.ID and PhoneNumber.ParentTable = "Account" and PhoneNumber.PrimaryPhoneNumber = true and PhoneNumber.PhoneNumber = Account.PrimaryPhoneNumber and PhoneNumber.PhoneType <> Account.PrimaryPhoneType:
         run fixPhoneType(PhoneNumber.ID,Account.PrimaryPhoneType,Account.PrimaryPhoneNumber).
     end.
@@ -86,7 +86,7 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// SET HH PHONE TYPE
+// SET Account PHONE TYPE
 procedure setHHPhoneType:
     define input parameter inpID as int64 no-undo.
     define input parameter newPhoneType as character no-undo.
@@ -99,7 +99,7 @@ procedure setHHPhoneType:
     end.
 end.
 
-// SET FM PHONE TYPE
+// SET Member PHONE TYPE
 procedure setFMPhoneType:
     define input parameter inpID as int64 no-undo.
     define input parameter newPhoneType as character no-undo.

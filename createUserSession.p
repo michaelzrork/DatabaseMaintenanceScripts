@@ -49,7 +49,7 @@ procedure createSession:
             bufUserSession.UserName = "VSHEE"
             bufUserSession.WorkStationName = "PR-5035"
             bufUserSession.SessionID = missingSession
-            bufUserSession.InterfaceType = "RecTrac"
+            bufUserSession.InterfaceType = "RecPortal"
             bufUserSession.InterfaceParameter = "RecTrac_1"
             bufUserSession.LoginDate = xDate
             bufUserSession.LoginTime = xTime

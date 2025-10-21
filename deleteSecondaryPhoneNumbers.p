@@ -8,7 +8,7 @@
  /*----------------------------------------------------------------------
     Author(s)   : michaelzr
     Created     : 4/3/25
-    Notes       : - Customer did a household import that somehow caused the phone numbers to be added as a secondary number
+    Notes       : - Customer did a account import that somehow caused the phone numbers to be added as a secondary number
                   - My guess is that they did an import with the incorrect phone numbers or a different value in the phone field, and the system
                     added them as secondary when they didn't match the existing primary 
                   - Looks like they actually had the correct phone numbers already in the system as the primary, and when they imported the wrong 

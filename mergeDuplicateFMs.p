@@ -81,7 +81,7 @@ for each Account no-lock:
 
     /* SET ORIGINAL MEMBER TO MERGE INTO */
     relationship-loop:
-    for each Relationship no-lock where Relationship.ParentTableID = accountID and Relationship.RecordType = "Household" by Relationship.Order:
+    for each Relationship no-lock where Relationship.ParentTableID = accountID and Relationship.RecordType = "Account" by Relationship.Order:
         assign
             origMemberID = Relationship.ChildTableID
             origOrderNum = Relationship.Order.
@@ -98,7 +98,7 @@ for each Account no-lock:
         define buffer bufMember for Member.
 
         /* FIND DUPLICATE MEMBERS */
-        for each bufRelationship no-lock where bufRelationship.ChildTableID <> origMemberID and bufRelationship.ParentTableID = accountID and bufRelationship.RecordType = "Household" and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" by bufRelationship.Order:
+        for each bufRelationship no-lock where bufRelationship.ChildTableID <> origMemberID and bufRelationship.ParentTableID = accountID and bufRelationship.RecordType = "Account" and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" by bufRelationship.Order:
             /* RESET VARIABLES */
             assign
                 dupeOrderNum    = 0

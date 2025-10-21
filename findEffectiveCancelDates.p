@@ -49,7 +49,7 @@ define temp-table ttTransactionDetailID no-undo
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,Name,Description,Effective Cancel Receipt").
+run put-stream ("Account Number,Name,Description,Effective Cancel Receipt").
 
 // FIND PASSES WITH EFFECTIVE CANCEL DATES
 for each Account no-lock:    

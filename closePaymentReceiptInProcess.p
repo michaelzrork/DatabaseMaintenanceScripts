@@ -37,7 +37,7 @@ define variable LogOnly         as logical   no-undo init false.
 
 define variable numRecs         as integer   no-undo init 0. 
 
-define variable HH              as integer   no-undo.
+define variable Account              as integer   no-undo.
 define variable adminEmail      as char      no-undo.
 define variable emailID         as int64     no-undo.
 define variable charTime        as char      no-undo.
@@ -76,7 +76,7 @@ run put-stream (
     "Posting Date," +
     "Description," +
     "Username," +
-    "HH Num," +
+    "Account Num," +
     "Fee Amount," +
     "Fee Paid," +
     "WordIndex," +
@@ -91,7 +91,7 @@ for each PaymentReceipt no-lock where PaymentReceipt.RecordStatus = "In Process"
         
     tmpItemCount = 0.
     for each TransactionDetail no-lock where TransactionDetail.CurrentReceipt = PaymentReceipt.ReceiptNumber:      
-        HH = TransactionDetail.EntityNumber.
+        Account = TransactionDetail.EntityNumber.
         /*** Need to place this above RemoveFromCart.p since that will delete the TransactionDetail record so we no longer
          *** have it when we build this list.
         ***/
@@ -115,7 +115,7 @@ for each PaymentReceipt no-lock where PaymentReceipt.RecordStatus = "In Process"
     end.
 
     /*** THESE SHOULD BE DELETED IN REMOVEFROMCART.P SINCE THEY ARE TIED TO TRANSACTIONDETAIL BUT THIS IS A FALL BACK JUST TO BE SAFE ***/  
-    for each AccountBalanceLog no-lock where AccountBalanceLog.EntityNumber = HH and
+    for each AccountBalanceLog no-lock where AccountBalanceLog.EntityNumber = Account and
         AccountBalanceLog.receiptnumber = PaymentReceipt.ReceiptNumber:
         run deleteSAControlAccountHistory (rowid(AccountBalanceLog)).
     end.    
@@ -148,12 +148,12 @@ for each PaymentReceipt no-lock where PaymentReceipt.RecordStatus = "In Process"
             /*** Try to void or refund the credit card sale - not possible with a refund **/
             //run business/cc_SessionCleaner.p (CardTransactionLog.ID, CardTransactionLog.DeviceCodeLink, output cc_ok, output cc_VoidOrRefund, output cc_msg).
   
-            run ActivityLog("RecTrac Session Ended - Credit Card Auth Exists",
+            run ActivityLog("RecPortal Session Ended - Credit Card Auth Exists",
                 "Receipt Number: " + string(PaymentReceipt.ReceiptNumber) + ", " + 
                 "Clerk: " + CardTransactionLog.UserName + (if available Permission then ("-" + Permission.Name) else "") + ", " + 
                 "Date: " + string(CardTransactionLog.ProcessDate,dateFormat) + ", " +
                 "Time: " + string(CardTransactionLog.PostingTime,timeFormat) + ", " +
-                "Household Number: " + string(HH),
+                "Account Number: " + string(HH),
                 "Items Involved in Session: " + trim(removedItemLIst,","),
                 (if eCheck then mess("ERR-603","eCheck") else mess("ERR-603","Credit Card"))).
         end.    
@@ -177,7 +177,7 @@ for each PaymentReceipt no-lock where PaymentReceipt.RecordStatus = "In Process"
         /*Username*/
         getString(PaymentReceipt.UserName)
         + "~",~"" +
-        /*HH Num*/
+        /*Account Num*/
         getString(string(PaymentReceipt.EntityNumber))
         + "~",~"" +
         /*Fee Amount*/

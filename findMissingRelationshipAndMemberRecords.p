@@ -47,10 +47,10 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Status,HH ID,HH Num,HH Name,HH Creation Date,HH Creation User,Missing Person ID,").
+run put-stream ("Status,Account ID,Account Num,Account Name,HH Creation Date,HH Creation User,Missing Person ID,").
 
-// HOUSEHOLD LOOP
-household-loop:
+// ACCOUNT LOOP
+account-loop:
 for each Account no-lock:
 
     assign 
@@ -65,8 +65,8 @@ for each Account no-lock:
         if not available Member then run put-stream ("Missing Member" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + "," + string(Relationship.ChildTableID) + ",").
     end.
     
-    if hasRelationship = false then run put-stream ("Missing Any HH Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
-    if hasRelationship = true and hasPrimary = false then run put-stream ("Missing Primary HH Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
+    if hasRelationship = false then run put-stream ("Missing Any Account Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
+    if hasRelationship = true and hasPrimary = false then run put-stream ("Missing Primary Account Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
 
 end.
   

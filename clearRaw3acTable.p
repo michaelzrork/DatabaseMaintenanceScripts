@@ -1,10 +1,10 @@
 /*------------------------------------------------------------------------
-    File        : clearRaw3acTable.p
+    File        : clearProcessQueueTable.p
     Purpose     : 
 
     Syntax      : 
 
-    Description : Clear all records from the Raw3ac table
+    Description : Clear all records from the ProcessQueue table
 
     Author(s)   : michaelzrork
     Created     : 
@@ -24,8 +24,8 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-for each Raw3ac no-lock where Raw3ac.Key1A = "SearchIndexBuilder":
-    run deleteRaw3ac(Raw3ac.ID).
+for each ProcessQueue no-lock where ProcessQueue.Key1A = "SearchIndexBuilder":
+    run deleteProcessQueue(ProcessQueue.ID).
 end.
 
 run ActivityLog.
@@ -35,9 +35,9 @@ run ActivityLog.
 *************************************************************************/
 
 // DELETE RAW3AC RECORD
-procedure deleteRaw3ac:
+procedure deleteProcessQueue:
     define input parameter inpID as int64 no-undo.
-    define buffer bufRaw3ac for Raw3ac.
+    define buffer bufRaw3ac for ProcessQueue.
     do for bufRaw3ac transaction:
         find first bufRaw3ac exclusive-lock where bufRaw3ac.id = inpID no-error no-wait.
         if available bufRaw3ac then 
@@ -54,11 +54,11 @@ procedure ActivityLog:
     do for bufActivityLog transaction:
         create bufActivityLog.
         assign
-            bufActivityLog.SourceProgram = "clearRaw3acTable.p"
+            bufActivityLog.SourceProgram = "clearProcessQueueTable.p"
             bufActivityLog.LogDate       = today
             bufActivityLog.LogTime       = time
             bufActivityLog.UserName      = "SYSTEM"
-            bufActivityLog.Detail1       = "Clear all records from the Raw3ac table"
+            bufActivityLog.Detail1       = "Clear all records from the ProcessQueue table"
             bufActivityLog.Detail2       = "Number of Records Deleted: " + string(recNum).
     end.
 end procedure.

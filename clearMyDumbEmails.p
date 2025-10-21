@@ -17,20 +17,20 @@
 
 define variable householdEmail     as character no-undo.
 define variable primaryCheck       as logical   no-undo.
-define variable numFMEmailsCleared as integer   no-undo.
-define variable numHHEmailsCleared as integer   no-undo.
+define variable numMemberEmailsCleared as integer   no-undo.
+define variable numAccountEmailsCleared as integer   no-undo.
 define variable numEmailsDeleted   as integer   no-undo.
-define variable hhNum              as int       no-undo.
-define variable hhID               as int64     no-undo.
+define variable accountNum              as int       no-undo.
+define variable accountID               as int64     no-undo.
 define variable personID           as int64     no-undo.
 
 assign
     householdEmail     = ""
-    numFMEmailsCleared = 0
-    numHHEmailsCleared = 0
+    numMemberEmailsCleared = 0
+    numAccountEmailsCleared = 0
     numEmailsDeleted   = 0
-    hhNum              = 0
-    hhID               = 0
+    accountNum              = 0
+    accountID               = 0
     personID           = 0.
 
 /*************************************************************************
@@ -71,7 +71,7 @@ procedure removeMemberEmail:
         if available bufMember then 
         do:
             // ADD TO NUMBER OF EMAILS CLEARED COUNT
-            numFMEmailsCleared = numFMEmailsCleared + 1.
+            numMemberEmailsCleared = numMemberEmailsCleared + 1.
             
             // BLANK OUT THE EMAIL ADDRESS
             bufMember.PrimaryEmailAddress = "".
@@ -79,7 +79,7 @@ procedure removeMemberEmail:
     end.
 end. 
 
-// REMOVE THE HOUSEHOLD EMAIL ADDRESS
+// REMOVE THE ACCOUNT EMAIL ADDRESS
 procedure removeAccountEmail:
     define input parameter inpid as int64 no-undo.
     define buffer bufAccount for Account.
@@ -88,7 +88,7 @@ procedure removeAccountEmail:
         if available bufAccount then 
         do:
             // ADD TO NUMBER OF EMAILS CLEARED COUNT
-            numHHEmailsCleared = numHHEmailsCleared + 1.
+            numAccountEmailsCleared = numAccountEmailsCleared + 1.
             
             // BLANK OUT THE EMAIL ADDRESS
             bufAccount.PrimaryEmailAddress = "".
@@ -123,8 +123,8 @@ procedure ActivityLog:
             bufActivityLog.UserName      = "SYSTEM"
             bufActivityLog.LogTime       = time
             bufActivityLog.Detail1       = "Clear all emails from database"
-            bufActivityLog.Detail2       = "Number of Member emails removed: " + string(numFMEmailsCleared)
-            bufActivityLog.Detail3       = "Number of Account emails removed: " + string(numHHEmailsCleared)
+            bufActivityLog.Detail2       = "Number of Member emails removed: " + string(numMemberEmailsCleared)
+            bufActivityLog.Detail3       = "Number of Account emails removed: " + string(numAccountEmailsCleared)
             bufActivityLog.Detail4       = "Number of EmailContact records removed: " + string(numEmailsDeleted).
             
     end.

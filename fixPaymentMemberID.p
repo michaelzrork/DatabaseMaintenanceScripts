@@ -52,7 +52,7 @@ define buffer bufPaymentLog for PaymentLog.
 run put-stream (
     "Date," +
     "Receipt Number," +
-    "Household Number," +
+    "Account Number," +
     "PaymentTransaction ID," +
     "PaymentLog ID," +
     "Original Person ID," +
@@ -142,7 +142,7 @@ procedure fixPaymentID:
                         /*Receipt Number*/
                         getString(string(bufPaymentTransaction.ReceiptNumber))
                         + "~",~"" +
-                        /*Household Number*/
+                        /*Account Number*/
                         getString(string(bufPaymentTransaction.PaymentHousehold))
                         + "~",~"" +
                         /*PaymentTransaction ID*/

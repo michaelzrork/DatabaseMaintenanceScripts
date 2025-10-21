@@ -4,7 +4,7 @@
 
     Syntax      : 
 
-    Description : Change HH and FM feecode from CS to NN
+    Description : Change Account and Member feecode from CS to NN
 
     Author(s)   : michaelzr
     Created     : 6/18/24
@@ -29,7 +29,7 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-// HOUSEHOLD LOOP
+// ACCOUNT LOOP
 for each Account no-lock where index(Account.CodeValue,oldFeeCode) > 0:
     run updateHHFeeCode(Account.ID).
 end.
@@ -46,7 +46,7 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// UPDATE HH FEE CODE
+// UPDATE Account FEE CODE
 procedure updateHHFeeCode:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
@@ -59,7 +59,7 @@ procedure updateHHFeeCode:
     end.
 end.
 
-// UPDATE FM FEE CODE
+// UPDATE Member FEE CODE
 procedure updateFMFeeCode:
     define input parameter inpID as int64 no-undo.
     define buffer bufMember for Member.
@@ -82,7 +82,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Change HH and FM feecode from " + oldFeeCode + " to " + newFeeCode
+            BufActivityLog.Detail1       = "Change Account and Member feecode from " + oldFeeCode + " to " + newFeeCode
             BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(numHHRecs).
     end.
 end procedure.

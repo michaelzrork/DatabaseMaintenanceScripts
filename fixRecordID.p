@@ -13,7 +13,7 @@ for each Member exclusive-lock where Member.ID = 0:
         numRecords  = numRecords + 1
         Member.ID = next-value(uniquenumber)
         idList      = list(string(Member.ID),idList).
-end. /* END HOUSEHOLD LOOP */
+end. /* END ACCOUNT LOOP */
     
 run ActivityLog.
     

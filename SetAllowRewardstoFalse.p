@@ -5,13 +5,13 @@
     Syntax      : 
 
     Description : Customer would like to set all Households to not allow rewards
-                    so that they can enable household rewards based on their own criteria
+                    so that they can enable account rewards based on their own criteria
 
     Author(s)   : MichaelZR
     Created     : 10/9/2023
     Notes       : 5/29/2024 - Updated to be a universal fix; can now be run in any database without a date
-                            - If it has not been run before, it will use 1/1/1985 for the household creation date
-                            - If it has been run before, it will find the last date it was run and use that as the household creation date 
+                            - If it has not been run before, it will use 1/1/1985 for the account creation date
+                            - If it has been run before, it will find the last date it was run and use that as the account creation date 
   ----------------------------------------------------------------------*/
 
 /*************************************************************************
@@ -54,7 +54,7 @@ end.
 if startDate = ? then startDate = 01/01/1985.
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,Original Rewards Status,Household Creation Date").
+run put-stream ("Account Number,Original Rewards Status,Account Creation Date").
 
 for each Account no-lock where Account.AllowRewards = true and Account.CreationDate ge startDate:
     run setRewardstoFalse(Account.ID).
@@ -117,7 +117,7 @@ procedure ActivityLog:
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Check Document Center for " + "SetAllowRewardstoFalseLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_*.csv" + " for a log of Records Changed"
-            BufActivityLog.Detail2       = "Number of Households Updated using HH creation date of " + string(startDate) + ": " + string(recordCount).
+            BufActivityLog.Detail2       = "Number of Households Updated using Account creation date of " + string(startDate) + ": " + string(recordCount).
     end.
   
 end procedure.

@@ -46,7 +46,7 @@ define variable numRecs              as integer   no-undo.
 define variable numHHFeaturesUpdated as integer   no-undo.
 define variable newFeatures          as character no-undo.
 define variable oldFeatures          as character no-undo.
-define variable hhName               as character no-undo.
+define variable accountName               as character no-undo.
 define variable oldFeecodeList       as character no-undo.
 define variable addToLog             as logical   no-undo.
 define variable numAnswersFixed      as integer   no-undo.
@@ -58,12 +58,12 @@ assign
     nonMemberFeecode     = "Non-Member"
     memberFeecode        = "RA Member"
     checkLastReviewed    = 09/01/2024 /* DATE USED TO CHECK FOR RECENT VERIFICATION */
-    hhStatusQuestion     = 178522 /* HH STATUS QUESTION ID */
+    hhStatusQuestion     = 178522 /* Account STATUS QUESTION ID */
     lastReviewedQuestion = 3203615 /* LAST REVIEWED DATE QUESTION ID */
     numHHFeaturesUpdated = 0
     newFeatures          = ""
     oldFeatures          = ""
-    hhName               = ""
+    accountName               = ""
     lastReviewedDate     = ?
     oldFeecodeList       = ""
     addToLog             = false
@@ -75,9 +75,9 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("HH ID,HH Num,HH Name,Original HH Status Answer,New HH Status Answer,Last Reviewed Date,Original Features,New Features,Original Feecodes,New Feecodes,").
+run put-stream ("Account ID,Account Num,Account Name,Original Account Status Answer,New Account Status Answer,Last Reviewed Date,Original Features,New Features,Original Feecodes,New Feecodes,").
   
-// HOUSEHOLD LOOPS
+// ACCOUNT LOOPS
 for each Account no-lock:    
     assign
         hhStatusAnswer   = ""
@@ -88,17 +88,17 @@ for each Account no-lock:
         oldFeeCodeList   = Account.CodeValue
         oldFeatures      = Account.Features
         addToLog         = false
-        hhName           = trim(getString(Account.FirstName) + " " + getString(Account.LastName)).                     
-    if hhName = "" then assign hhName = (if getString(Account.OrganizationName) = "" then "No Household Name" else getString(Account.OrganizationName)).
+        accountName           = trim(getString(Account.FirstName) + " " + getString(Account.LastName)).                     
+    if accountName = "" then assign accountName = (if getString(Account.OrganizationName) = "" then "No Account Name" else getString(Account.OrganizationName)).
     
-    // FIND HH STATUS ANSWER AND USE THAT TO SET NEW FEATURES
+    // FIND Account STATUS ANSWER AND USE THAT TO SET NEW FEATURES
     for first QuestionResponse no-lock where QuestionResponse.DetailLinkID = Account.ID and QuestionResponse.QuestionLinkId = hhStatusQuestion:
         hhStatusAnswer = getString(QuestionResponse.Answer).
-        find first LookupCode no-lock where LookupCode.RecordType = "Household Feature" and LookupCode.RecordCode = QuestionResponse.Answer no-error no-wait.
+        find first LookupCode no-lock where LookupCode.RecordType = "Account Feature" and LookupCode.RecordCode = QuestionResponse.Answer no-error no-wait.
         if available LookupCode then assign newFeatures = LookupCode.RecordCode. 
         if not available LookupCode then 
         do:
-            find first LookupCode no-lock where LookupCode.RecordType = "Household Feature" and LookupCode.Description = QuestionResponse.Answer no-error no-wait.
+            find first LookupCode no-lock where LookupCode.RecordType = "Account Feature" and LookupCode.Description = QuestionResponse.Answer no-error no-wait.
             if available LookupCode then 
             do:
                 assign 
@@ -116,10 +116,10 @@ for each Account no-lock:
         end.
     end.
     
-    // IF HH STATUS ANSWER NOT AVAILABLE, SET NEW FEATURES TO UNKNOWN
+    // IF Account STATUS ANSWER NOT AVAILABLE, SET NEW FEATURES TO UNKNOWN
     if not available QuestionResponse then assign newFeatures = "Unknown".
 
-    // IF CURRENT FEATURES DO NOT MATCH THE NEW FEATURES, UPDATE THE HH FEATURES
+    // IF CURRENT FEATURES DO NOT MATCH THE NEW FEATURES, UPDATE THE Account FEATURES
     if oldFeatures <> newFeatures then run syncFeatures(Account.ID).
     
     // FIND THE LAST REVIEWED DATE
@@ -155,7 +155,7 @@ for each Account no-lock:
     if addToLog = true then run put-stream("~"" + 
             getString(string(Account.ID)) + "~",~"" + 
             getString(string(Account.EntityNumber)) + "~",~"" + 
-            getString(hhName) + "~",~"" + 
+            getString(accountName) + "~",~"" + 
             getString(hhStatusAnswer) + "~",~"" + 
             (if getString(newAnswer) = "" then "No Change" else getString(newAnswer)) + "~",~"" + 
             getString(string(lastReviewedDate)) + "~",~"" + 
@@ -193,7 +193,7 @@ procedure fixAnswer:
 end procedure.
 
 
-// SYNCS HH FEATURES WITH THE HH STATUS QUESTION ANSWER
+// SYNCS Account FEATURES WITH THE Account STATUS QUESTION ANSWER
 procedure syncFeatures:
     define input parameter inpid as int64 no-undo.
     define buffer bufAccount for Account.
@@ -261,8 +261,8 @@ procedure ActivityLog:
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Reset Feecode to Non-Member for Households with Renter Feature"
             BufActivityLog.Detail2       = "Check Document Center for resetFeecodeToNonMemberLog for a log of Records Changed"
-            BufActivityLog.Detail3       = "Number of HH Features Updated: " + string(numHHFeaturesUpdated)
-            bufActivityLog.Detail4       = "Number of HH Feecodes Updated: " + string(numRecs)
-            bufActivityLog.Detail5       = "Number of HH Answers Updated: " + string(numAnswersFixed).
+            BufActivityLog.Detail3       = "Number of Account Features Updated: " + string(numHHFeaturesUpdated)
+            bufActivityLog.Detail4       = "Number of Account Feecodes Updated: " + string(numRecs)
+            bufActivityLog.Detail5       = "Number of Account Answers Updated: " + string(numAnswersFixed).
     end.
 end procedure.

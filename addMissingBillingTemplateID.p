@@ -28,7 +28,7 @@ define variable logfileTime           as integer   no-undo.
 
 define variable numRecs               as integer   no-undo. 
 define variable billingTemplateIDList as character no-undo.
-define variable hhName                as character no-undo.
+define variable accountName                as character no-undo.
 define variable personName            as character no-undo.
 define variable detailDescription     as character no-undo.
 define variable BillingOption         as character no-undo.
@@ -41,7 +41,7 @@ assign
     
     numRecs               = 0
     billingTemplateIDList = ""
-    hhName                = ""
+    accountName                = ""
     personName            = ""
     detailDescription     = ""
     billingOption         = ""
@@ -54,7 +54,7 @@ assign
 /* CREATE LOG FILE FIELD HEADERS */
 /* I LIKE TO INCLUDE AN EXTRA COMMA AT THE END OF THE CSV ROWS BECAUSE THE LAST FIELD HAS EXTRA WHITE SPACE - IT'S JUST A LITTLE CLEANER */
 run put-stream (
-    "ID,TransactionDate,HouseholdNumber,Household Name,Person Name,DetailLinkID,Description,InstallmentBillingOption,BillingDetailID,").
+    "ID,TransactionDate,HouseholdNumber,Account Name,Person Name,DetailLinkID,Description,InstallmentBillingOption,BillingDetailID,").
     
 for each BillingPlan no-lock:
     billingTemplateIDList = uniqueList(string(BillingPlan.ID),billingTemplateIDList,",").
@@ -62,7 +62,7 @@ end.
 
 for each InvoiceLineItem no-lock where InvoiceLineItem.BillingTemplateID = 0 or lookup(string(InvoiceLineItem.BillingTemplateID),billingTemplateIDList) = 0:
     assign 
-        hhName            = ""
+        accountName            = ""
         personName        = ""
         detailDescription = ""
         billingOption     = ""
@@ -73,7 +73,7 @@ for each InvoiceLineItem no-lock where InvoiceLineItem.BillingTemplateID = 0 or 
         find first Account no-lock where Account.EntityNumber = InvoiceLineItem.EntityNumber no-error.
         if available Account then
             assign
-                hhName = trim(getString(Account.FirstName) + " " + getString(Account.LastName)).
+                accountName = trim(getString(Account.FirstName) + " " + getString(Account.LastName)).
         find first TransactionDetail no-lock where TransactionDetail.ID = InvoiceLineItem.DetailLinkID no-error.
         if available TransactionDetail then 
             assign 
@@ -126,8 +126,8 @@ procedure fixBillingTemplateID:
                 /*HouseholdNumber*/
                 getString(string(bufInvoiceLineItem.EntityNumber))
                 + "~",~"" +
-                /*Household Name*/
-                getString(hhName)
+                /*Account Name*/
+                getString(accountName)
                 + "~",~"" +
                 /*Person Name*/
                 getString(personName)

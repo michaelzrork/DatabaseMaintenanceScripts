@@ -1,14 +1,14 @@
 /*------------------------------------------------------------------------
-    File        : syncHHPhoneToPrimaryGuardian.p
+    File        : syncAccountPhoneToPrimaryGuardian.p
     Purpose     : 
 
     Syntax      : 
 
-    Description : Sync Household phone number to the Primary Guardian record
+    Description : Sync Account phone number to the Primary Guardian record
 
     Author(s)   : michaelzr
     Created     : 4/19/2024
-    Notes       : RecTrac has never synced phone numbers, so this is not necessarily a bug. It is being looked into with PM-147506
+    Notes       : RecPortal has never synced phone numbers, so this is not necessarily a bug. It is being looked into with PM-147506
           
   ----------------------------------------------------------------------*/
 
@@ -48,14 +48,14 @@ assign
     
 // EVERYTHING ELSE
 
-define variable hhID        as int64     no-undo.
+define variable accountID        as int64     no-undo.
 define variable personID    as int64     no-undo.
 define variable hhPhoneNum  as character no-undo.
 define variable hhPhoneType as character no-undo.
 define variable hhPhoneExt  as character no-undo.
 
 assign 
-    hhID        = 0
+    accountID        = 0
     personID    = 0
     hhPhoneNum  = ""
     hhPhoneType = ""
@@ -71,7 +71,7 @@ run put-stream ("Record ID,Table,Member ID,First Name,Last Name,Original Phone N
 // SYNC MEMBER PHONE NUMBER WITH ACCOUNT IF OUT OF SYNC
 for each Relationship no-lock where Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
     assign 
-        hhID        = 0
+        accountID        = 0
         personID    = 0
         hhPhoneNum  = ""
         hhPhoneType = ""
@@ -81,7 +81,7 @@ for each Relationship no-lock where Relationship.ChildTable = "Member" and Relat
     if available Member and (Member.PrimaryPhoneNumber <> Account.PrimaryPhoneNumber or (Member.PrimaryPhoneNumber = Account.PrimaryPhoneNumber and Account.PrimaryPhoneNumber <> "" and (Member.PrimaryPhoneType <> Account.PrimaryPhoneType or Member.PrimaryPhoneExtension <> Account.PrimaryPhoneExtension))) then 
     do:
         assign
-            hhID        = Account.ID
+            accountID        = Account.ID
             personID    = Member.ID
             hhPhoneNum  = getString(Account.PrimaryPhoneNumber)
             hhPhoneType = if hhPhoneNum = "" then "" else getString(Account.PrimaryPhoneType)
@@ -218,11 +218,11 @@ procedure ActivityLog:
     do for BufActivityLog transaction:
         create BufActivityLog.
         assign
-            BufActivityLog.SourceProgram = "syncHHPhoneToPrimaryGuardian.r"
+            BufActivityLog.SourceProgram = "syncAccountPhoneToPrimaryGuardian.r"
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Sync Household Phone Number to the Primary Guardian record"
+            BufActivityLog.Detail1       = "Sync Account Phone Number to the Primary Guardian record"
             BufActivityLog.Detail2       = "Check Document Center for syncHHPhoneToPrimaryGuardianLog for a log of Records Changed"
             BufActivityLog.Detail3       = "Number of Member Records Adjusted: " + string(personPhoneRecs)
             BufActivityLog.Detail4       = "Number of PhoneNumber Records Adjusted: " + string(phoneRecs) 

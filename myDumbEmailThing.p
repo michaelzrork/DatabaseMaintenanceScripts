@@ -109,13 +109,13 @@ for each Member no-lock:
         // RE-ENABLE TO USE FAKE EMAIL CHECK
         // firstHalf       = ""
         familyMemberID  = Member.ID.
-    // CHECK IF PERSON IS A PRIMARY MEMBER IN ANY HOUSEHOLD
+    // CHECK IF PERSON IS A PRIMARY MEMBER IN ANY ACCOUNT
     for first Relationship no-lock where Relationship.ChildTableID = Member.ID and Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
         assign 
             isPrimary = true.
     end.
     
-    // RE-ENABLE TO ONLY UPDATE PRIMARY GUARDIAN AND HOUSEHOLD EMAILS; LEAVE DISABLED TO UPDATE FM EMAILS AS WELL
+    // RE-ENABLE TO ONLY UPDATE PRIMARY GUARDIAN AND ACCOUNT EMAILS; LEAVE DISABLED TO UPDATE Member EMAILS AS WELL
     // if Member.PrimaryEmailAddress = "" and isPrimary = false then next Member-loop.
     
     /* RE-ENABLE TO RESTORE FAKE EMAIL DOMAIN CHECK
@@ -130,7 +130,7 @@ for each Member no-lock:
     */
     
     do:
-        // IF FAMILY MEMBER HAS NO FIRST AND LAST NAME OR ORGANIZATION NAME, LOOK FOR A HOUSEHOLD ORGANIZATION NAME; WE ARE NOT CHECKING THE MEMBER.ORGANIZATION NAME, AS THIS IS OFTEN USED FOR SILVER SNEAKERS
+        // IF FAMILY MEMBER HAS NO FIRST AND LAST NAME OR ORGANIZATION NAME, LOOK FOR A ACCOUNT ORGANIZATION NAME; WE ARE NOT CHECKING THE MEMBER.ORGANIZATION NAME, AS THIS IS OFTEN USED FOR SILVER SNEAKERS
         if Member.FirstName = "" and Member.LastName = "" then run orgCheck(Member.ID).
         // CREATE NEW EMAIL ADDRESS USING FIRSTNAME.LASTNAME OR FAMILY MEMBER ORGANIZATION 
         if hhOrg = false then newEmailAddress = gmailUser + "+" + lc(
@@ -150,7 +150,7 @@ for each Member no-lock:
         end.
         // CHANGE MEMBER EMAIL ADDRESS
         run changePersonEmailAddress(Member.ID).
-        // IF PERSON IS A PRIMARY, UPDATE HOUSEHOLD
+        // IF PERSON IS A PRIMARY, UPDATE ACCOUNT
         if isPrimary = true then 
         do:
             for each Relationship no-lock where Relationship.ChildTableID = Member.ID and Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
@@ -186,7 +186,7 @@ run ActivityLog.
 *************************************************************************/
 
 // RUNS ONLY IF THE PERSON RECORD HAS NO FIRST NAME, LAST NAME, OR ORGANIZATION NAME, THEN SETS THE
-// NEW EMAIL ADDRESS WITH THE HOUSEHOLD ORGANIZATION NAME OR THE PERSON ID IF AN ORG IS NOT AVAILABLE
+// NEW EMAIL ADDRESS WITH THE ACCOUNT ORGANIZATION NAME OR THE PERSON ID IF AN ORG IS NOT AVAILABLE
 procedure orgCheck:
     define input parameter inpID as int64 no-undo.
     define buffer bufRelationship      for Relationship.
@@ -236,7 +236,7 @@ procedure changePersonEmailAddress:
     end.
 end.
 
-// UPDATE HOUSEHOLD EMAIL ADDRESS
+// UPDATE ACCOUNT EMAIL ADDRESS
 procedure changeHouseholdEmailAddress:
     define input parameter inpID as int64 no-undo.
     define variable dtNow as datetime no-undo.

@@ -10,17 +10,17 @@
    Created  :   5/29/25
    Notes    :   - Finds new households created since the check date, which is Today minus the value in the filename (or Today - 7 if it doesn't find a value)
                   This is done by finding the QuickFixProcessor audit log entry and looking for the number after "Today-" in the filename
-                - Uses the WebTrac interface parameters to determine the Usernames to check
+                - Uses the WebPortal interface parameters to determine the Usernames to check
                 - Adds a logfile entry for every Settled transaction for inactivated households so they can be refunded if necessary
-                - Inactivates any household using an email address that is known as used by the bad actor
-                - Inactivates any household with an email address that includes @example, as these would not be valid email addresses anyway
-                - Skips any household with payments in house, as the bad actor wouldn't have access to run cards this way
-                - Inactivates any household whose name includes gibberish known to be used by the bad actor (eg. - name begins "asd")
-                - Skips households with Household Coordinates, as this means they have legitimate addresses
-                - Inactivates any household with a birthday that matches 12/31/69, which is the main one used, or any birthday used in the @example households
+                - Inactivates any account using an email address that is known as used by the bad actor
+                - Inactivates any account with an email address that includes @example, as these would not be valid email addresses anyway
+                - Skips any account with payments in house, as the bad actor wouldn't have access to run cards this way
+                - Inactivates any account whose name includes gibberish known to be used by the bad actor (eg. - name begins "asd")
+                - Skips households with Account Coordinates, as this means they have legitimate addresses
+                - Inactivates any account with a birthday that matches 12/31/69, which is the main one used, or any birthday used in the @example households
                 - Skips households with no credit card activity (settled or declined)                
                 - Skips households where the card holder name matches a first or last name of any family member
-                - Inactivates any household with a declined transaction where the card holder name doesn't match the first or last name of any family member
+                - Inactivates any account with a declined transaction where the card holder name doesn't match the first or last name of any family member
                 - Skips households with no declined transactions (only settled)
  ----------------------------------------------------------------------*/
 
@@ -113,14 +113,14 @@ define temp-table ttHouseholds
     field recordCount as integer 
     index ID ID.
     
-define temp-table ttFMName
+define temp-table ttMemberName
     field ID        as int64
-    field HHID      as int64
+    field AccountID      as int64
     field FirstName as character 
     field LastName  as character
     field Birthday  as date
     index ID   ID 
-    index HHID HHID.
+    index AccountID AccountID.
     
 define temp-table ttBirthdays
     field Birthday as date
@@ -131,7 +131,7 @@ assign
     ttBirthdays.Birthday = 12/31/1969.
     
 interface-loop:
-for each IntegrationConfig no-lock where IntegrationConfig.InterfaceType matches "*WebTrac*":
+for each IntegrationConfig no-lock where IntegrationConfig.InterfaceType matches "*WebPortal*":
     if getString(IntegrationConfig.UserName) = "" then next interface-loop. 
     assign 
         WebTracUserNames = uniqueList(WebTracUserNames,IntegrationConfig.UserName,",").
@@ -145,11 +145,11 @@ end.
 /* I LIKE TO INCLUDE AN EXTRA COMMA AT THE END OF THE CSV ROWS BECAUSE THE LAST FIELD HAS EXTRA WHITE SPACE - IT'S JUST A LITTLE CLEANER */
 run put-stream (
     "Log Notes," +
-    "HH Number," +
-    "HH ID," +
+    "Account Number," +
+    "Account ID," +
     "FM ID," +
     "CCHistory ID," +
-    "HH Name," +
+    "Account Name," +
     "FM Name," +
     "Card Holder Name," +
     "Number of Family Members," +
@@ -183,7 +183,7 @@ run ActivityLog(
     "Number of Households Skipped So Far:" + addCommas(numHHSkipped),
     "").
 
-/* FIND HOUSEHOLDS CREATED SINCE CHECK DATE */
+/* FIND ACCOUNTS CREATED SINCE CHECK DATE */
 hh-loop:
 for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Account.CreationUserName,WebTracUserNames) > 0 and Account.RecordStatus = "Active":
     
@@ -198,12 +198,12 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
         "Number of Households Skipped So Far:" + addCommas(numHHSkipped),
         "").
     
-    /* RESET FM COUNT */
+    /* RESET Member COUNT */
     assign
         numFMs = 0
         ix     = 0.
     
-    /* COUNT HOW MANY FAMILY MEMBERS THERE ARE IN THE HOUSEHOLD TO ADD TO LOGFILE */
+    /* COUNT HOW MANY FAMILY MEMBERS THERE ARE IN THE ACCOUNT TO ADD TO LOGFILE */
     fm-loop:
     for each Relationship no-lock where Relationship.ParentTable = "Account"
         and Relationship.ParentTableID = Account.ID
@@ -213,20 +213,20 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
         if available Member then 
         do:
             numFMs = numFMs + 1.
-            for first ttFMName no-lock where ttFMName.ID = Relationship.ChildTableID and ttFMName.HHID = Relationship.ParentTableID:
+            for first ttMemberName no-lock where ttMemberName.ID = Relationship.ChildTableID and ttMemberName.AccountID = Relationship.ParentTableID:
                 next fm-loop.
             end.
-            create ttFMName.
+            create ttMemberName.
             assign 
-                ttFMName.ID        = Relationship.ChildTableID
-                ttFMName.HHID      = Relationship.ParentTableID
-                ttFMName.FirstName = Member.FirstName
-                ttFMName.LastName  = Member.LastName
-                ttFMName.Birthday  = Member.Birthday.
+                ttMemberName.ID        = Relationship.ChildTableID
+                ttMemberName.AccountID      = Relationship.ParentTableID
+                ttMemberName.FirstName = Member.FirstName
+                ttMemberName.LastName  = Member.LastName
+                ttMemberName.Birthday  = Member.Birthday.
         end.
     end.
             
-    /* LOOP THROUGH ALL MEMBERS OF THE HOUSEHOLD TO FIND THE PRIMARY GUARDIAN */
+    /* LOOP THROUGH ALL MEMBERS OF THE ACCOUNT TO FIND THE PRIMARY GUARDIAN */
     primary-loop:
     for each Relationship no-lock where Relationship.ParentTable = "Account"
         and Relationship.ParentTableID = Account.ID
@@ -237,11 +237,11 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
         find first Member no-lock where Member.ID = Relationship.ChildTableID no-error.
         if not available Member or Member.RecordStatus <> "Active" then next primary-loop.
         
-        /* INACTIVATE ANY HOUSEHOLD WITH AN EMAIL ADDRESS WITH @example OR A KNOWN EMAIL ADDRESS USED BY THE BAD ACTOR */
-        /* NOTE: WE DO THIS BEFORE WE CHECK FOR INTERNAL TRANSACTIONS TO SPEED UP THE PROGRAM, AS WE KNOW THESE ARE INVALID HOUSEHOLDS */
+        /* INACTIVATE ANY ACCOUNT WITH AN EMAIL ADDRESS WITH @example OR A KNOWN EMAIL ADDRESS USED BY THE BAD ACTOR */
+        /* NOTE: WE DO THIS BEFORE WE CHECK FOR INTERNAL TRANSACTIONS TO SPEED UP THE PROGRAM, AS WE KNOW THESE ARE INVALID ACCOUNTS */
         if Account.PrimaryEmailAddress matches "*@example*" or Account.PrimaryEmailAddress = "marcelopinedaloia9222@gmail.com" or Account.PrimaryEmailAddress = "emmayue159@gmail.com" then 
         do:
-            /* LOG ALL BIRTHDAYS USED IN THESE KNOWN BAD ACTOR HOUSEHOLDS TO BE USED LATER */
+            /* LOG ALL BIRTHDAYS USED IN THESE KNOWN BAD ACTOR ACCOUNTS TO BE USED LATER */
             if Member.Birthday <> ? then 
             do:
                 find first ttBirthdays no-lock where ttBirthdays.Birthday = Member.Birthday no-error no-wait.
@@ -252,31 +252,31 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
                         ttBirthdays.Birthday = Member.Birthday.
                 end.
             end.
-            /* INACTIVATE THE HOUSEHOLD */
+            /* INACTIVATE THE ACCOUNT */
             run InactivateHousehold(Account.ID,Member.ID,0,"HH Inactivated - @example or marcelopinedaloia9222@gmail.com as Email Address; Potential Bad Actor").
-            /* LOG ANY SETTLED CREDIT CARD TRANSACTION FOR THE INACTIVATED HOUSEHOLD IN CASE THEY NEED TO BE REFUNDED */
+            /* LOG ANY SETTLED CREDIT CARD TRANSACTION FOR THE INACTIVATED ACCOUNT IN CASE THEY NEED TO BE REFUNDED */
             run checkForSettled(Account.ID).
-            /* IF INACTIVATED, MOVE ON TO THE NEXT HOUSEHOLD */
+            /* IF INACTIVATED, MOVE ON TO THE NEXT ACCOUNT */
             next hh-loop.
         end.
     
-        /* SKIP ANY HOUSEHOLD THAT HAS AN INTERNAL CREDIT CARD TRANSACTION (I.E. NOT A WEBTRAC USERNAME), AS THE BAD ACTOR WOULD NOT HAVE ACCESS TO THOSE USERNAMES */
+        /* SKIP ANY ACCOUNT THAT HAS AN INTERNAL CREDIT CARD TRANSACTION (I.E. NOT A WEBTRAC USERNAME), AS THE BAD ACTOR WOULD NOT HAVE ACCESS TO THOSE USERNAMES */
         /* NOTE: THIS IS THE LAST CHECK THAT WILL NOT HAVE ANY FALSE POSITIVES OR NEGATIVES */
         for first CardTransactionLog no-lock where CardTransactionLog.ParentRecord = Account.ID and lookup(CardTransactionLog.UserName,WebTracUserNames) = 0:
-            run LogHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Skipped - Internal Credit Card Purchase Found; Potential Legitimate Household").
+            run LogHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Skipped - Internal Credit Card Purchase Found; Potential Legitimate Account").
             next hh-loop.
         end.
         
-        /* INACTIVATE ANY HOUSEHOLD USING GIBBERISH IN THE FIRST OR LAST NAME */
-        /* NOTE: THIS COULD POTENTIALLY INACTIVATE A VALID HOUSEHOLD, BUT I CAN'T THINK OF ANY NAME THAT MIGHT START WITH THESE RANDOM LETTERS UNLESS IT'S AN ACRONYM */
-        /* AND IF A HOUSEHOLD THAT ISN'T CREATED BY THE BAD ACTOR USES GIBBERISH AS THEIR NAME THEY MIGHT AS WELL BE INACTIVATED ANYWAY */
+        /* INACTIVATE ANY ACCOUNT USING GIBBERISH IN THE FIRST OR LAST NAME */
+        /* NOTE: THIS COULD POTENTIALLY INACTIVATE A VALID ACCOUNT, BUT I CAN'T THINK OF ANY NAME THAT MIGHT START WITH THESE RANDOM LETTERS UNLESS IT'S AN ACRONYM */
+        /* AND IF A ACCOUNT THAT ISN'T CREATED BY THE BAD ACTOR USES GIBBERISH AS THEIR NAME THEY MIGHT AS WELL BE INACTIVATED ANYWAY */
         if Account.FirstName begins "asd" or Account.LastName begins "asd"
             or Account.FirstName begins "asg" or Account.LastName begins "asg" 
             or Account.FirstName begins "asf" or Account.LastName begins "asf"
             or Account.FirstName begins "sdf" or Account.LastName begins "sdf"
             or Account.FirstName begins "fdg" or Account.LastName begins "fdg" then 
         do:
-            /* LOG ALL BIRTHDAYS USED IN THESE KNOWN BAD ACTOR HOUSEHOLDS TO BE USED LATER */
+            /* LOG ALL BIRTHDAYS USED IN THESE KNOWN BAD ACTOR ACCOUNTS TO BE USED LATER */
             if Member.Birthday <> ? then 
             do:
                 find first ttBirthdays no-lock where ttBirthdays.Birthday = Member.Birthday no-error no-wait.
@@ -287,24 +287,24 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
                         ttBirthdays.Birthday = Member.Birthday.
                 end.
             end.
-            /* INACTIVATE THE HOUSEHOLD */
+            /* INACTIVATE THE ACCOUNT */
             run InactivateHousehold(Account.ID,Member.ID,0,"HH Inactivated - Name begins with 'asd' or other gibberish; Potential Bad Actor").
-            /* LOG ANY SETTLED CREDIT CARD TRANSACTION FOR THE INACTIVATED HOUSEHOLD IN CASE THEY NEED TO BE REFUNDED */
+            /* LOG ANY SETTLED CREDIT CARD TRANSACTION FOR THE INACTIVATED ACCOUNT IN CASE THEY NEED TO BE REFUNDED */
             run checkForSettled(Account.ID).
-            /* IF INACTIVATED, MOVE ON TO THE NEXT HOUSEHOLD */
+            /* IF INACTIVATED, MOVE ON TO THE NEXT ACCOUNT */
             next hh-loop.
         end.
 
-        /* SKIP ANY HOUSEHOLD WITH HOUSEHOLD COORDINATES, AS THIS WOULD MEAN THAT THE ADDRESS IS VALID AND THE BAD ACTOR HAS (SO FAR) BEEN USING INVALID ADDRESSES */
-        /* NOTE: THIS COULD POTENTIALLY SKIP HOUSEHOLDS CREATED BY THE BAD ACTOR IF THEY START TO USE LEGITIMATE ADDRESSES, BUT THE HOPE IS THAT THE ABOVE CHECKS CATCH THEM FIRST */        
+        /* SKIP ANY ACCOUNT WITH ACCOUNT COORDINATES, AS THIS WOULD MEAN THAT THE ADDRESS IS VALID AND THE BAD ACTOR HAS (SO FAR) BEEN USING INVALID ADDRESSES */
+        /* NOTE: THIS COULD POTENTIALLY SKIP ACCOUNTS CREATED BY THE BAD ACTOR IF THEY START TO USE LEGITIMATE ADDRESSES, BUT THE HOPE IS THAT THE ABOVE CHECKS CATCH THEM FIRST */        
         if index(Account.MiscInformation,"HouseholdCoordinates") > 0 then 
         do:
-            run LogHousehold(Account.ID,0,0,"HH Skipped - Household Coordinates Found; Potential Legitimate Household").
+            run LogHousehold(Account.ID,0,0,"HH Skipped - Account Coordinates Found; Potential Legitimate Account").
             next hh-loop.
         end.
         
-        /* INACTIVATE HOUSEHOLDS USING A BIRTHDAY KNOWN TO BE USED BY THE BAD ACTOR */
-        /* NOTE: THIS COULD POTENTIALLY INACTIVATE VALID HOUSEHOLDS IF THE PERSON ACTUALLY HAS A BIRTHDAY THAT MATCHES THE LIST OF USED BIRTHDAYS */
+        /* INACTIVATE ACCOUNTS USING A BIRTHDAY KNOWN TO BE USED BY THE BAD ACTOR */
+        /* NOTE: THIS COULD POTENTIALLY INACTIVATE VALID ACCOUNTS IF THE PERSON ACTUALLY HAS A BIRTHDAY THAT MATCHES THE LIST OF USED BIRTHDAYS */
         if Member.Birthday <> ? then 
         do:
             find first ttBirthdays no-lock where ttBirthdays.Birthday = Member.Birthday no-error no-wait.
@@ -316,39 +316,39 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
             end.
         end.
 
-        /* SKIP HOUSEHOLDS WITH NO CREDIT CARD ACTIVITY */
-        /* NOTE: THIS COULD POTENTIALLY SKIP VALID HOUSEHOLDS IF THE BAD ACTOR DIDN'T USE THE HOUSEHOLD TO TEST CARDS */
-        /* THE HOPE IS THAT THE ABOVE CHECKS FIND ALL OF THE BAD ACTOR HOUSEHOLDS EVEN IF THEY AREN'T BEING USED BEFORE WE GET HERE */
+        /* SKIP ACCOUNTS WITH NO CREDIT CARD ACTIVITY */
+        /* NOTE: THIS COULD POTENTIALLY SKIP VALID ACCOUNTS IF THE BAD ACTOR DIDN'T USE THE ACCOUNT TO TEST CARDS */
+        /* THE HOPE IS THAT THE ABOVE CHECKS FIND ALL OF THE BAD ACTOR ACCOUNTS EVEN IF THEY AREN'T BEING USED BEFORE WE GET HERE */
         if not can-find (first CardTransactionLog no-lock where CardTransactionLog.ParentRecord = Account.ID no-wait) then 
         do:
-            run LogHousehold(Account.ID,Member.ID,0,"HH Skipped - No Credit Card Transactions Found; Potential Legitimate Household").
+            run LogHousehold(Account.ID,Member.ID,0,"HH Skipped - No Credit Card Transactions Found; Potential Legitimate Account").
             next hh-loop.
         end.
         
         /* FIND THE FIRST DECLINED CREDIT CARD TRANSACTION AND CHECK FOR A NAME MATCH */
-        /* THE THINKING HERE IS THAT THE BAD ACTOR IS TESTING MULTIPLE CARDS AGAINST EACH HOUSEHOLD THEY CREATE */
-        /* SO, EVEN IF THEY FIND A VALID CREDIT CARD, THE HOUSEHOLD WILL HAVE MULTIPLE DECLINES */
-        /* BY THE TIME WE GET HERE ALL INVALID HOUSEHOLDS HAVE HOPEFULLY BEEN CAUGHT AND INACTIVATED, SO ANY HOUSEHOLD GOING THROUGH THIS LOOP ARE LIKELY VALID */
+        /* THE THINKING HERE IS THAT THE BAD ACTOR IS TESTING MULTIPLE CARDS AGAINST EACH ACCOUNT THEY CREATE */
+        /* SO, EVEN IF THEY FIND A VALID CREDIT CARD, THE ACCOUNT WILL HAVE MULTIPLE DECLINES */
+        /* BY THE TIME WE GET HERE ALL INVALID ACCOUNTS HAVE HOPEFULLY BEEN CAUGHT AND INACTIVATED, SO ANY ACCOUNT GOING THROUGH THIS LOOP ARE LIKELY VALID */
         cc-loop:
         for first CardTransactionLog no-lock where CardTransactionLog.ParentRecord = Account.ID and lookup(CardTransactionLog.UserName,WebTracUserNames) > 0 and CardTransactionLog.RecordStatus = "Declined":
     
-            /* CHECK FOR A NAME MATCH ON THE CARD HOLDER NAME TO ANY FAMILY MEMBER WITHIN THE HOUSEHOLD */ 
-            for each ttFMName no-lock where ttFMName.HHID = Account.ID:
+            /* CHECK FOR A NAME MATCH ON THE CARD HOLDER NAME TO ANY FAMILY MEMBER WITHIN THE ACCOUNT */ 
+            for each ttMemberName no-lock where ttMemberName.AccountID = Account.ID:
                 
-                /* SKIP THE HOUSEHOLD IF A FIRST OR LAST NAME MATCH IS FOUND ON ANY MEMBER OF THE FAMILY TO THE CARD HOLDER NAME */
-                /* NOTE: THIS COULD POTENTIALLY SKIP BAD ACTOR HOUSEHOLDS IF THE STOLEN CARD DATA HAPPENS TO SHARE A FIRST OR LAST NAME WITH THE FAKE HOUSEHOLD */
-                /* AS OF NOW THE BAD ACTOR HAS NOT BEEN LINING UP THE HOUSEHOLD NAME WITH THE CARD NAME, BUT THEY COULD START TO DO THAT IN THE FUTURE */
+                /* SKIP THE ACCOUNT IF A FIRST OR LAST NAME MATCH IS FOUND ON ANY MEMBER OF THE FAMILY TO THE CARD HOLDER NAME */
+                /* NOTE: THIS COULD POTENTIALLY SKIP BAD ACTOR ACCOUNTS IF THE STOLEN CARD DATA HAPPENS TO SHARE A FIRST OR LAST NAME WITH THE FAKE ACCOUNT */
+                /* AS OF NOW THE BAD ACTOR HAS NOT BEEN LINING UP THE ACCOUNT NAME WITH THE CARD NAME, BUT THEY COULD START TO DO THAT IN THE FUTURE */
                 /* IF THEY DO, HOPEFULLY THE ABOVE CHECKS WOULD CATCH IT BEFORE IT MAKES IT THIS FAR */
-                if index(CardTransactionLog.CreditCardholder,ttFMName.FirstName) > 0 or
-                        index(CardTransactionLog.CreditCardholder,ttFMName.LastName) > 0 then 
+                if index(CardTransactionLog.CreditCardholder,ttMemberName.FirstName) > 0 or
+                        index(CardTransactionLog.CreditCardholder,ttMemberName.LastName) > 0 then 
                 do:
-                    run LogHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Skipped - Card Holder Name Matches HH or FM Name; Potential Legitimate Household").
+                    run LogHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Skipped - Card Holder Name Matches Account or Member Name; Potential Legitimate Account").
                     next hh-loop.
                 end.
             end.
                
-            /* IF THERE IS A DECLINED TRANSACTION WITH NO NAME MATCH THEN INACTIVATE THE HOUSEHOLD */
-            /* NOTE: THIS HAS THE POTENTIAL TO INACTIVATE LEGITIMATE HOUSEHOLDS THAT HAPPENED TO MAKE IT PAST THE OTHER CHECKS */
+            /* IF THERE IS A DECLINED TRANSACTION WITH NO NAME MATCH THEN INACTIVATE THE ACCOUNT */
+            /* NOTE: THIS HAS THE POTENTIAL TO INACTIVATE LEGITIMATE ACCOUNTS THAT HAPPENED TO MAKE IT PAST THE OTHER CHECKS */
             run InactivateHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Inactivated - Declined Transactions Found; Potential Bad Actor").
             run checkForSettled(Account.ID).
             next hh-loop.
@@ -356,8 +356,8 @@ for each Account no-lock where Account.CreationDate ge CheckDate and lookup(Acco
         
         /* IF WE MAKE IT THIS FAR THEY ONLY HAVE SETTLED CC TRANSACTIONS, SO LET'S LOG THEM AS SKIPPED */
         find first CardTransactionLog no-lock where CardTransactionLog.ParentRecord = Account.ID and CardTransactionLog.RecordStatus = "Settled" no-error no-wait.
-        if available CardTransactionLog then run LogHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Skipped - No Declined Credit Card Transactions Found; Potential Legitimate Household").
-        if not available CardTransactionLog then run LogHousehold(Account.ID,Member.ID,0,"HH Skipped - No Declined Credit Card Transactions Found; Potential Legitimate Household").
+        if available CardTransactionLog then run LogHousehold(Account.ID,Member.ID,CardTransactionLog.ID,"HH Skipped - No Declined Credit Card Transactions Found; Potential Legitimate Account").
+        if not available CardTransactionLog then run LogHousehold(Account.ID,Member.ID,0,"HH Skipped - No Declined Credit Card Transactions Found; Potential Legitimate Account").
     end.
 end.
 
@@ -390,13 +390,13 @@ procedure checkForSettled:
     define buffer bufCardTransactionLog for CardTransactionLog.
     do for bufCardTransactionLog transaction:
         for each bufCardTransactionLog no-lock where bufCardTransactionLog.ParentRecord = inpID and bufCardTransactionLog.RecordStatus = "Settled":
-            run LogHousehold(Account.ID,0,BufCreditCardHistory.ID,"Settled CC History Record for Inactivated Household; Potential Refund Required").
+            run LogHousehold(Account.ID,0,BufCreditCardHistory.ID,"Settled CC History Record for Inactivated Account; Potential Refund Required").
         end.
     end.
 end procedure.
 
 procedure LogHousehold:
-    define input parameter hhID as int64 no-undo.
+    define input parameter accountID as int64 no-undo.
     define input parameter fmID as int64 no-undo.
     define input parameter ccID as int64 no-undo.
     define input parameter LogNotes as character no-undo. 
@@ -404,7 +404,7 @@ procedure LogHousehold:
     define buffer bufMember            for Member.
     define buffer bufCardTransactionLog for CardTransactionLog.
     do for bufAccount transaction:
-        find first BufAccount no-lock where BufAccount.ID = hhID no-error no-wait.
+        find first BufAccount no-lock where BufAccount.ID = accountID no-error no-wait.
         if fmID <> 0 then find first bufMember no-lock where bufMember.ID = fmID no-error no-wait.
         if ccID <> 0 then find first bufCardTransactionLog no-lock where bufCardTransactionLog.ID = ccID no-error no-wait.
         if available BufAccount then 
@@ -416,10 +416,10 @@ procedure LogHousehold:
                 /*Log Notes*/
                 LogNotes
                 + "~",~"" +
-                /*HH Number*/
+                /*Account Number*/
                 getString(string(bufAccount.EntityNumber))
                 + "~",~"" +
-                /*HH ID*/
+                /*Account ID*/
                 getString(string(bufAccount.ID))
                 + "~",~"" +
                 /*FM ID*/
@@ -428,7 +428,7 @@ procedure LogHousehold:
                 /*CCHistory ID*/
                 (if ccID = 0 then "" else getString(string(bufCardTransactionLog.ID)))
                 + "~",~"" +
-                /*HH Name*/
+                /*Account Name*/
                 trim(getString(bufAccount.FirstName) + " " + getString(bufAccount.LastName))
                 + "~",~"" +
                 /*FM Name*/
@@ -508,7 +508,7 @@ procedure LogHousehold:
 end procedure.
         
 procedure InactivateHousehold:
-    define input parameter hhID as int64 no-undo.
+    define input parameter accountID as int64 no-undo.
     define input parameter fmID as int64 no-undo.
     define input parameter ccID as int64 no-undo.
     define input parameter LogNotes as character no-undo. 
@@ -520,7 +520,7 @@ procedure InactivateHousehold:
         if ccID <> 0 then find first bufCardTransactionLog no-lock where bufCardTransactionLog.ID = ccID no-error no-wait.
         if LogOnly then 
         do:
-            find first bufAccount no-lock where bufAccount.ID = hhID no-error.
+            find first bufAccount no-lock where bufAccount.ID = accountID no-error.
             if available bufAccount then 
             do:
                 /* UPDATE AUDIT LOG WITH LAST TABLE/ID AND CURRENT RECORD COUNTS */ 
@@ -536,10 +536,10 @@ procedure InactivateHousehold:
                     /*Log Notes*/
                     LogNotes
                     + "~",~"" +
-                    /*HH Number*/
+                    /*Account Number*/
                     getString(string(bufAccount.EntityNumber))
                     + "~",~"" +
-                    /*HH ID*/
+                    /*Account ID*/
                     getString(string(bufAccount.ID))
                     + "~",~"" +
                     /*FM ID*/
@@ -548,7 +548,7 @@ procedure InactivateHousehold:
                     /*CCHistory ID*/
                     (if ccID = 0 then "" else getString(string(bufCardTransactionLog.ID)))
                     + "~",~"" +
-                    /*HH Name*/
+                    /*Account Name*/
                     trim(getString(bufAccount.FirstName) + " " + getString(bufAccount.LastName))
                     + "~",~"" +
                     /*FM Name*/
@@ -627,7 +627,7 @@ procedure InactivateHousehold:
         end.
         else 
         do:
-            find first bufAccount exclusive-lock where bufAccount.ID = hhID no-error.
+            find first bufAccount exclusive-lock where bufAccount.ID = accountID no-error.
             if available bufAccount then 
             do:
                 /* UPDATE AUDIT LOG WITH LAST TABLE/ID AND CURRENT RECORD COUNTS */ 
@@ -649,10 +649,10 @@ procedure InactivateHousehold:
                     /*Log Notes*/
                     LogNotes
                     + "~",~"" +
-                    /*HH Number*/
+                    /*Account Number*/
                     getString(string(bufAccount.EntityNumber))
                     + "~",~"" +
-                    /*HH ID*/
+                    /*Account ID*/
                     getString(string(bufAccount.ID))
                     + "~",~"" +
                     /*FM ID*/
@@ -661,7 +661,7 @@ procedure InactivateHousehold:
                     /*CCHistory ID*/
                     (if ccID = 0 then "" else getString(string(bufCardTransactionLog.ID)))
                     + "~",~"" +
-                    /*HH Name*/
+                    /*Account Name*/
                     trim(getString(bufAccount.FirstName) + " " + getString(bufAccount.LastName))
                     + "~",~"" +
                     /*FM Name*/

@@ -22,7 +22,7 @@ numRecs = 0.
                                 MAIN BLOCK
 *************************************************************************/
 
-for each EmailContact exclusive-lock where EmailContact.OptInIP = "Household Import":
+for each EmailContact exclusive-lock where EmailContact.OptInIP = "Account Import":
     delete EmailContact.
 end.
 run ActivityLog.

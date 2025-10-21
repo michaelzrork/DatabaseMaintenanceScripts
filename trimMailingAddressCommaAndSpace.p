@@ -83,7 +83,7 @@ for each AccountAddress exclusive-lock where AccountAddress.RecordCode begins ",
 end.
 
 /* CREATE AUDIT LOG RECORD */
-run ActivityLog(xDescription,"Number of Address Records Adjusted: " + string(numRecs),"Number of Linked Household Records Adjusted: " + string(numLinked),"").
+run ActivityLog(xDescription,"Number of Address Records Adjusted: " + string(numRecs),"Number of Linked Account Records Adjusted: " + string(numLinked),"").
 
 /*************************************************************************
                             INTERNAL PROCEDURES

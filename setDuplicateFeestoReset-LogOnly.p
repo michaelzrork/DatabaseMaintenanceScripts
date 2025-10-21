@@ -52,7 +52,7 @@ define temp-table ttResetFees no-undo
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,Fee Order,ParentID,Item Description,CloneID,Fee ID,Fee Description,ReceiptNumber,RecordStatus,LogDate,UserName").
+run put-stream ("Account Number,Fee Order,ParentID,Item Description,CloneID,Fee ID,Fee Description,ReceiptNumber,RecordStatus,LogDate,UserName").
 
 fee-loop:
 for each Charge no-lock where Charge.RecordStatus = "Charge" by Charge.ID:
@@ -108,7 +108,7 @@ procedure setFeeToReset:
                 create ttResetFees.
                 assign
                     ttResetFees.FeeID = bufCharge.ID.
-                // ADD RECORD TO LOG "Household Number,LogDate,ParentID,Item Description,CloneID,Fee ID,Fee Description,ReceiptNumber,Old RecordStatus,New RecordStatus,UserName"
+                // ADD RECORD TO LOG "Account Number,LogDate,ParentID,Item Description,CloneID,Fee ID,Fee Description,ReceiptNumber,Old RecordStatus,New RecordStatus,UserName"
                 run put-stream((if available TransactionDetail then string(TransactionDetail.EntityNumber) else "TransactionDetail Record Not Found") + "," + string(bufCharge.LogDate) + "," + string(bufCharge.ParentRecord) + "," + (if available TransactionDetail then replace(TransactionDetail.Description,",","") else "TransactionDetail Record Not Found") + "," + string(bufCharge.CloneID) + "," + string(bufCharge.ID) + "," + replace(bufCharge.Description,",","") + "," + string(bufCharge.ReceiptNumber) + "," + bufCharge.RecordStatus + "," + "Reset" + "," + bufCharge.UserName).
                 assign
                     foundFee     = true

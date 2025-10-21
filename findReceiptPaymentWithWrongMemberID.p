@@ -64,7 +64,7 @@ for each PaymentMethod no-lock where lookup(PaymentMethod.RecordType,"Scholarshi
 end.
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("PaymentTransaction ID,Date,Time,User,Receipt Number,Receipt HH Num,Correct Member ID,Correct Member Name,Incorrect Member HH Num List,Incorrect Member ID,Incorrect Member Name,Paycode,Paycode Record Type,Receipt Payment Amount,Payment History Amount,").
+run put-stream ("PaymentTransaction ID,Date,Time,User,Receipt Number,Receipt Account Num,Correct Member ID,Correct Member Name,Incorrect Member Account Num List,Incorrect Member ID,Incorrect Member Name,Paycode,Paycode Record Type,Receipt Payment Amount,Payment History Amount,").
 
 payment-loop:
 for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 0:
@@ -108,12 +108,12 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                         if available Member then 
                         do:
                             incorrectName = Member.FirstName + " " + Member.LastName.
-                            // ADD EVERY HOUSEHOLD ASSOCIATED WITH THIS PERSON TO THE HH LIST
-                            for each Relationship no-lock where Relationship.ChildTableID = Member.ID and Relationship.ParentTable = "Account" and Relationship.RecordType = "Household":
+                            // ADD EVERY ACCOUNT ASSOCIATED WITH THIS PERSON TO THE Account LIST
+                            for each Relationship no-lock where Relationship.ChildTableID = Member.ID and Relationship.ParentTable = "Account" and Relationship.RecordType = "Account":
                                 find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
                                 hhList = list(string(Account.EntityNumber),hhList).
                             end.
-                            // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD IS IN ONE OF THE HOUSEHOLDS THE INCORRECT PERSON IS IN, SKIP THE RECORD
+                            // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD IS IN ONE OF THE ACCOUNTS THE INCORRECT PERSON IS IN, SKIP THE RECORD
                             if lookup(string(PaymentTransaction.PaymentHousehold),hhList) ne 0 then next payment-loop.
                         end.
                         
@@ -122,12 +122,12 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                         if available LSTeam then 
                         do:
                             incorrectName = "TeamID: " + LSTeam.TeamID.
-                            // ADD EVERY HOUSEHOLD ASSOCIATED WITH THIS TEAM TO THE HH LIST
+                            // ADD EVERY ACCOUNT ASSOCIATED WITH THIS TEAM TO THE Account LIST
                             for each Relationship no-lock where Relationship.ChildTableID = LSTeam.ID and Relationship.ParentTable = "Account" and Relationship.RecordType = "Team":
                                 find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
                                 hhList = list(string(Account.EntityNumber),hhList).
                             end.
-                            // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD IS IN ONE OF THE HOUSEHOLDS THE INCORRECT PERSON IS IN, SKIP THE RECORD
+                            // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD IS IN ONE OF THE ACCOUNTS THE INCORRECT PERSON IS IN, SKIP THE RECORD
                             if lookup(string(PaymentTransaction.PaymentHousehold),hhList) ne 0 then next payment-loop.
                         end.
                         
@@ -141,7 +141,7 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                         
                         assign
                             numRecs = numRecs + 1.
-                        // PaymentTransaction ID,Date,Time,User,Receipt Number,Receipt HH Num,Correct Member ID,Correct Member Name,Incorrect Member HH Num List,Incorrect Member ID,Incorrect Member Name,Paycode,Paycode Record Type,Receipt Payment Amount,Payment History Amount
+                        // PaymentTransaction ID,Date,Time,User,Receipt Number,Receipt Account Num,Correct Member ID,Correct Member Name,Incorrect Member Account Num List,Incorrect Member ID,Incorrect Member Name,Paycode,Paycode Record Type,Receipt Payment Amount,Payment History Amount
                         run put-stream(string(PaymentTransaction.ID) + "," + (if PaymentTransaction.PostingDate = ? then "" else string(PaymentTransaction.PostingDate)) + "," + string(PaymentTransaction.PostingTime / 86400) + "," + PaymentTransaction.UserName + "," + string(PaymentTransaction.ReceiptNumber) + "," + string(PaymentTransaction.PaymentHousehold) + "," + string(TransactionDetail.PatronLinkID) + "," + (if correctName = "" then "Member Not Available" else "~"" + correctName + "~"") + "," + "~"" + replace(hhList,",",", ") + "~"" + "," + string(PaymentTransaction.PaymentMemberID) + "," + (if incorrectName = "" then "Member Not Available" else "~"" + incorrectName + "~"") + "," + PaymentTransaction.Paycode + "," + paymentType + "," + string(PaymentTransaction.Amount) + "," + (if paymentHistoryAmount = 0 then "n/a" else string(paymentHistoryAmount)) + ",").
                     end.
                 end.

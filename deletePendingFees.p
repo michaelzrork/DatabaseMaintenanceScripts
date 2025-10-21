@@ -42,7 +42,7 @@ define variable FeeHistSkipped     as integer   no-undo init 0.
 define variable FeeSkipped         as integer   no-undo init 0.
 define variable DeleteFeeHist      as logical   no-undo init true.
 define variable DeleteFee          as logical   no-undo init true.
-define variable hhNum              as int64     no-undo init 0.
+define variable accountNum              as int64     no-undo init 0.
 define variable DetailID           as int64     no-undo init 0.
 define variable DetailDescription  as character no-undo init "".
 define variable DetailReceiptList  as character no-undo init "".
@@ -145,7 +145,7 @@ for each ChargeHistory no-lock where (ChargeHistory.recordstatus = "Pending" or 
     assign
         DeleteFeeHist      = true
         DeleteFee          = true
-        hhNum              = 0
+        accountNum              = 0
         DetailID           = 0
         DetailDescription  = ""
         DetailReceiptList  = ""
@@ -188,7 +188,7 @@ for each ChargeHistory no-lock where (ChargeHistory.recordstatus = "Pending" or 
             assign
                 DetailID           = TransactionDetail.ID
                 DetailReceiptList  = TransactionDetail.ReceiptList
-                hhNum              = TransactionDetail.EntityNumber
+                accountNum              = TransactionDetail.EntityNumber
                 DetailDescription  = TransactionDetail.Description
                 DetailRecordStatus = TransactionDetail.RecordStatus
                 cModule            = TransactionDetail.Module
@@ -211,7 +211,7 @@ for each ChargeHistory no-lock where (ChargeHistory.recordstatus = "Pending" or 
             assign
                 DetailID           = Charge.ParentRecord
                 DetailReceiptList  = "N/A"
-                hhNum              = ChargeHistory.PaymentHousehold
+                accountNum              = ChargeHistory.PaymentHousehold
                 DetailDescription  = "N/A"
                 DetailRecordStatus = "N/A"
                 cModule            = Charge.Module.
@@ -379,7 +379,7 @@ for each ChargeHistory no-lock where (ChargeHistory.recordstatus = "Pending" or 
             xCloneID           = 0
             DetailID           = 0
             DetailReceiptList  = "N/A"
-            hhNum              = ChargeHistory.PaymentHousehold
+            accountNum              = ChargeHistory.PaymentHousehold
             DetailDescription  = "N/A"
             DetailRecordStatus = "N/A"
             cModule            = "N/A".
@@ -405,7 +405,7 @@ for each ChargeHistory no-lock where (ChargeHistory.recordstatus = "Pending" or 
                     NumMissingFee      = NumMissingFee + 1
                     DetailID           = TransactionDetail.ID
                     DetailReceiptList  = TransactionDetail.ReceiptList
-                    hhNum              = TransactionDetail.EntityNumber
+                    accountNum              = TransactionDetail.EntityNumber
                     DetailDescription  = TransactionDetail.Description
                     DetailRecordStatus = TransactionDetail.RecordStatus
                     cModule            = TransactionDetail.Module
@@ -613,7 +613,7 @@ procedure fixCounts:
                     "Charge ChargeHistory Record Updated with Time Count and Quantity; Charge Record Skipped"
                     + "~",~"" +
                     /*HouseholdNumber*/
-                    getString(string(hhNum))
+                    getString(string(accountNum))
                     + "~",~"" +
                     /*Module*/
                     getString(cModule)
@@ -715,7 +715,7 @@ procedure fixCounts:
                     "Charge ChargeHistory Record Updated with Time Count and Quantity"
                     + "~",~"" +
                     /*HouseholdNumber*/
-                    getString(string(hhNum))
+                    getString(string(accountNum))
                     + "~",~"" +
                     /*Module*/
                     getString(cModule)
@@ -835,7 +835,7 @@ procedure DeleteSAFeeHistory:
                     LogNotes
                     + "~",~"" +
                     /*HouseholdNumber*/
-                    getString(string(hhNum))
+                    getString(string(accountNum))
                     + "~",~"" +
                     /*Module*/
                     getString(cModule)
@@ -946,7 +946,7 @@ procedure DeleteSAFeeHistory:
                     LogNotes
                     + "~",~"" +
                     /*HouseholdNumber*/
-                    getString(string(hhNum))
+                    getString(string(accountNum))
                     + "~",~"" +
                     /*Module*/
                     getString(cModule)
@@ -1066,7 +1066,7 @@ procedure logChargeHistory:
                 LogNotes
                 + "~",~"" +
                 /*HouseholdNumber*/
-                getString(string(hhNum))
+                getString(string(accountNum))
                 + "~",~"" +
                 /*Module*/
                 getString(cModule)

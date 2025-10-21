@@ -39,7 +39,7 @@ define variable numClearedFeeHist       as integer no-undo.
 define variable clearedFees             as decimal no-undo.
 define variable clearedNotFullyPaidFees as decimal no-undo.
 define variable numDetailRecs           as integer no-undo.
-define variable hhNum                   as integer no-undo.
+define variable accountNum                   as integer no-undo.
 define variable numSkippedDiscounts     as integer no-undo. 
 
 assign
@@ -48,7 +48,7 @@ assign
     clearedFees             = 0
     numDetailRecs           = 0
     numSkippedDiscounts     = 0
-    hhNum                   = 46.
+    accountNum                   = 46.
     
 define buffer bufCharge for Charge.
 
@@ -64,7 +64,7 @@ def temp-table ttDetail no-undo
 run put-stream ("Table,Record ID,ChargeHistory Receipt Number,Original Fee Amount,Original Discount Amount,New Fee Amount,Charge ID,Charge Receipt Number,Charge Description,Charge Record Status,PaymentReceipt ID for ChargeHistory Receipt,PaymentReceipt Fee Amount for ChargeHistory Receipt,PaymentReceipt Fee Paid for ChargeHistory Receipt,TransactionDetail ID,TransactionDetail Description,TransactionDetail Current Receipt,TransactionDetail Record Status,TransactionDetail Fully Paid Status,").
 
 feehist-loop:
-for each ChargeHistory no-lock where ChargeHistory.PaymentHousehold = hhNum and ChargeHistory.FeeAmount > 0 and ChargeHistory.DiscountAmount = 0 and ChargeHistory.RecordStatus = "Charge":
+for each ChargeHistory no-lock where ChargeHistory.PaymentHousehold = accountNum and ChargeHistory.FeeAmount > 0 and ChargeHistory.DiscountAmount = 0 and ChargeHistory.RecordStatus = "Charge":
     find first Charge no-lock where Charge.ID = ChargeHistory.ParentRecord no-error no-wait.
     if available Charge and Charge.FeeType begins "Discount" then 
     do:

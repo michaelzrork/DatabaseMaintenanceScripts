@@ -55,10 +55,10 @@ run ActivityLog.
 *************************************************************************/
 
 procedure checkForDuplicateAnswer:
-    define input parameter hhID as int64 no-undo.
+    define input parameter accountID as int64 no-undo.
     define input parameter origAnswerID as int64 no-undo.
     define buffer bufQuestionResponse for QuestionResponse.
-    for first bufQuestionResponse no-lock where bufQuestionResponse.DetailLinkID = hhID and bufQuestionResponse.QuestionLinkID = origQuestionLinkID and index(bufQuestionResponse.WordIndex,string(newQuestionID)) > 0:
+    for first bufQuestionResponse no-lock where bufQuestionResponse.DetailLinkID = accountID and bufQuestionResponse.QuestionLinkID = origQuestionLinkID and index(bufQuestionResponse.WordIndex,string(newQuestionID)) > 0:
         assign 
             isDuplicate = true.
         run deleteAnswer(origAnswerID,"Duplicate").
@@ -72,9 +72,9 @@ procedure updateAnswer:
         find first bufQuestionResponse exclusive-lock where bufQuestionResponse.ID = inpID no-error no-wait.
         if available bufQuestionResponse then 
         do:
-            // CHECK FOR HOUSEHOLD
+            // CHECK FOR ACCOUNT
             // find first Account no-lock where Account.ID = bufQuestionResponse.DetailLinkID no-wait no-error.
-            //if not available Account then run deleteAnswer(bufQuestionResponse.ID,"No Household").
+            //if not available Account then run deleteAnswer(bufQuestionResponse.ID,"No Account").
             // else
             assign
                 numAnswersUpdated     = numAnswersUpdated + 1
@@ -92,7 +92,7 @@ procedure deleteAnswer:
         if available bufQuestionResponse then 
         do:
             if reason = "Duplicate" then numDupAnswersDeleted = numDupAnswersDeleted + 1.
-            else if reason = "No Household" then numNoHHAnswersDeleted = numNoHHAnswersDeleted + 1.
+            else if reason = "No Account" then numNoHHAnswersDeleted = numNoHHAnswersDeleted + 1.
             delete bufQuestionResponse.
         end.
     end.
@@ -123,7 +123,7 @@ procedure ActivityLog:
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Merge and Delete Duplicate Question Answers for Question ID " + string(origQuestionLinkID) + " (Merged " + string(dupQuestionID) + " into " + string(newQuestionID) + ")"
             BufActivityLog.Detail2       = "Number of Duplicate Answers Deleted: " + string(numDupAnswersDeleted)
-            BufActivityLog.Detail3       = "Number of No Household Answers Deleted: " + string(numNoHHAnswersDeleted)
+            BufActivityLog.Detail3       = "Number of No Account Answers Deleted: " + string(numNoHHAnswersDeleted)
             BufActivityLog.Detail4       = "Number of Answers Merged: " + string(numAnswersUpdated)
             BufActivityLog.Detail5       = "Number of Questions Deleted: " + string(numQuestionsDeleted).
     end.

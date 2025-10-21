@@ -3,7 +3,7 @@
 *************************************************************************/
 
 &global-define ProgramName "findEmailAndWebTracStatuses" /* PRINTS IN AUDIT LOG AND USED FOR LOGFILE NAME */
-&global-define ProgramDescription "Find email address and WebTrac statuses"  /* PRINTS IN AUDIT LOG WHEN INCLUDED AS INPUT PARAMETER */
+&global-define ProgramDescription "Find email address and WebPortal statuses"  /* PRINTS IN AUDIT LOG WHEN INCLUDED AS INPUT PARAMETER */
     
 /*----------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-/* FIND ALL INTERNAL AND MODEL HOUSEHOLDS */
+/* FIND ALL INTERNAL AND MODEL ACCOUNTS */
 profilefield-loop:
 for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" or CustomField.FieldName begins "ModelHousehold":
     if getString(CustomField.FieldValue) = "" then next profilefield-loop.
@@ -76,7 +76,7 @@ end.
 
 /* CREATE LOG FILE FIELD HEADERS */
 run put-stream (
-    "Household Number," +
+    "Account Number," +
     "HH Creation Date," +
     "HH Last Active Date," +
     "Person ID," +
@@ -86,21 +86,21 @@ run put-stream (
     "Email Address," +
     "Email Verified," +
     "Email Opted In," +
-    "WebTrac Username," +
+    "WebPortal Username," +
     "Has Web Account," +
     "Has Web Access," +
     "Has Web Invites," +
     "Account Status," +
     "Permissions,").
     
-/* HOUSEHOLD LOOP */   
+/* ACCOUNT LOOP */   
 hh-loop:
 for each Account no-lock where Account.RecordStatus = "Active":
     
-    /* SKIP GUEST AND ALL INTERNAL AND MODEL HOUSEHOLDS */
+    /* SKIP GUEST AND ALL INTERNAL AND MODEL ACCOUNTS */
     if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next hh-loop.
    
-    /* LOOP THROUGH ALL MEMBERS OF THE HOUSEHOLD */
+    /* LOOP THROUGH ALL MEMBERS OF THE ACCOUNT */
     member-loop:
     for each Relationship no-lock where Relationship.ParentTable = "Account"
         and Relationship.ParentTableID = Account.ID
@@ -110,9 +110,9 @@ for each Account no-lock where Account.RecordStatus = "Active":
         if not available Member or Member.RecordStatus <> "Active" or isEmpty(Member.PrimaryEmailAddress)then next member-loop.
 
         assign
-            oHouseholdBO = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
+            oHouseholdBO = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE ACCOUNT OBJECT */
             oPersonBO    = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO      = oPersonBO:GetLinkToRecord(oHouseholdBO:Household).  /* GRABS THE RELATIONSHIP OBJECT */
+            oLinkBO      = oPersonBO:GetLinkToRecord(oHouseholdBO:Account).  /* GRABS THE RELATIONSHIP OBJECT */
                    
         if not valid-object(oHouseholdBO) or not valid-object(oPersonBO) or not valid-object(oLinkBO) then next member-loop.
         
@@ -132,7 +132,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
      
         /* LOG CHANGES */
         run put-stream("~"" +
-            /*Household Number*/
+            /*Account Number*/
             getString(string(oHouseholdBO:HouseholdNumber))
             + "~",~"" +
             /*HH Creation Date*/
@@ -162,7 +162,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
             /*Email Opted In*/
             (if oPersonBO:GetPrimaryEmailOptedIn() then "Yes" else "No")
             + "~",~"" +
-            /*WebTrac Username*/
+            /*WebPortal Username*/
             (if oPersonBO:WebUserName:UserName = "" then "None" else oPersonBO:WebUserName:UserName)
             + "~",~"" +
             /*Has Web Account*/

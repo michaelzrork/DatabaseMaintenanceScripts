@@ -183,11 +183,11 @@ procedure ActivityLog:
     do for BufActivityLog transaction:
         create BufActivityLog.
         assign
-            BufActivityLog.SourceProgram = "syncHHEmailtoPrimaryGuardian.r"
+            BufActivityLog.SourceProgram = "syncAccountEmailtoPrimaryGuardian.r"
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Sync Household emails to the Primary Guardian record"
+            BufActivityLog.Detail1       = "Sync Account emails to the Primary Guardian record"
             BufActivityLog.Detail2       = "Check Document Center for syncHHEmailtoPrimaryGuardianLog for a log of Records Changed"
             BufActivityLog.Detail3       = "Number of Member Records Adjusted: " + string(personRecs)
             BufActivityLog.Detail4       = "Number of EmailContact Records Adjusted: " + string(emailRecsUpdated)

@@ -4,7 +4,7 @@
 
     Syntax      : 
 
-    Description : Sets all custom Household Update screens to Taxable
+    Description : Sets all custom Account Update screens to Taxable
 
     Author(s)   : michaelzr
     Created     : 11/06/2024
@@ -49,7 +49,7 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-// FIND ALL CUSTOM HOUSEHOLD UPDATE SCREEN DESIGN FIELDS WITH A VALUE OF NO
+// FIND ALL CUSTOM ACCOUNT UPDATE SCREEN DESIGN FIELDS WITH A VALUE OF NO
 for each FormDefinition no-lock where FormDefinition.ScreenName = "AccountUpdate" and FormDefinition.FieldName = "Account_Taxable":
     for first FieldConfig no-lock where FieldConfig.ParentRecord = FormDefinition.ID and FieldConfig.FieldName = "Account_Taxable" and FieldConfig.ParamName = "FieldValue":
         if FieldConfig.ParamValue = "No" then run updateTaxable(FieldConfig.ID).
@@ -99,7 +99,7 @@ procedure createTaxable:
             bufFieldConfig.FieldName  = "Account_Taxable"
             bufFieldConfig.ParamName  = "FieldValue"
             bufFieldConfig.ParamValue = "Yes"
-            bufFieldConfig.Interface  = "RecTrac"
+            bufFieldConfig.Interface  = "RecPortal"
             bufFieldConfig.RecordType = "Custom"
             bufFieldConfig.ParentRecord   = xParentID
             bufFieldConfig.Version    = "3.1.05.00"
@@ -109,14 +109,14 @@ procedure createTaxable:
             bufFieldConfig.FieldName  = "Account_Taxable"
             bufFieldConfig.ParamName  = "FilterValue"
             bufFieldConfig.ParamValue = "No"
-            bufFieldConfig.Interface  = "RecTrac"
+            bufFieldConfig.Interface  = "RecPortal"
             bufFieldConfig.RecordType = "Custom"
             bufFieldConfig.ParentRecord   = xParentID
             bufFieldConfig.Version    = "3.1.05.00".
     end.
 end procedure.
 
-// UPDATE HOUSEHOLDS CREATED SINCE .35 UPDATE
+// UPDATE ACCOUNTS CREATED SINCE .35 UPDATE
 procedure updateHouseholdTaxable:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
@@ -159,9 +159,9 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Sets all custom Household Update screens to Taxable"
+            BufActivityLog.Detail1       = "Sets all custom Account Update screens to Taxable"
             BufActivityLog.Detail2       = "Check Document Center for setCustomHHUpdateScreensToTaxableLog for a log of Records Changed"
             BufActivityLog.Detail3       = "Number of Custom Screen Designs Updated: " + string(numNewRecs + numRecs)
-            bufActivityLog.Detail4       = "Number of Household created after " + string(xCreationDate) + " set to Taxable: " + string(numHHupdated).
+            bufActivityLog.Detail4       = "Number of Account created after " + string(xCreationDate) + " set to Taxable: " + string(numHHupdated).
     end.
 end procedure.

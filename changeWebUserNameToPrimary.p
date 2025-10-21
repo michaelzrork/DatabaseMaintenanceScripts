@@ -72,7 +72,7 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-/* FIND ALL INTERNAL AND MODEL HOUSEHOLDS */
+/* FIND ALL INTERNAL AND MODEL ACCOUNTS */
 profilefield-loop:
 for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" or CustomField.FieldName begins "ModelHousehold":
     if getString(CustomField.FieldValue) = "" then next profilefield-loop.
@@ -83,7 +83,7 @@ end.
 
 /* CREATE LOG FILE FIELD HEADERS */
 /*run put-stream (                   */
-/*    "Household Number," +          */
+/*    "Account Number," +          */
 /*    "Primary Guardian Person ID," +*/
 /*    "First Name," +                */
 /*    "Last Name," +                 */
@@ -91,7 +91,7 @@ end.
 /*    "Email Address," +             */
 /*    "Email Verified," +            */
 /*    "Email Opted In," +            */
-/*    "WebTrac Username," +          */
+/*    "WebPortal Username," +          */
 /*    "Has Web Account," +           */
 /*    "Has Web Access," +            */
 /*    "Has Web Invites," +           */
@@ -105,7 +105,7 @@ end.
 /*    "Email Address," +             */
 /*    "Email Verified," +            */
 /*    "Email Opted In," +            */
-/*    "WebTrac Username," +          */
+/*    "WebPortal Username," +          */
 /*    "Has Web Account," +           */
 /*    "Has Web Access," +            */
 /*    "Has Web Invites," +           */
@@ -122,14 +122,14 @@ run put-stream("WebUserName.ID," +
                "Original Parent Relationship.WebLastLoginDateTime," +
                "New Parent Relationship.WebLastLoginDateTime,").
     
-/* HOUSEHOLD LOOP */   
+/* ACCOUNT LOOP */   
 hh-loop:
 for each Account no-lock where Account.RecordStatus = "Active":
     
-    /* SKIP GUEST AND ALL INTERNAL AND MODEL HOUSEHOLDS */
+    /* SKIP GUEST AND ALL INTERNAL AND MODEL ACCOUNTS */
     if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next hh-loop.
    
-    /* LOOP THROUGH ALL MEMBERS OF THE HOUSEHOLD */
+    /* LOOP THROUGH ALL MEMBERS OF THE ACCOUNT */
     member-loop:
     for each Relationship no-lock where Relationship.ParentTable = "Account"
         and Relationship.ParentTableID = Account.ID
@@ -140,9 +140,9 @@ for each Account no-lock where Account.RecordStatus = "Active":
         if not available Member or Member.RecordStatus <> "Active" or isEmpty(Member.PrimaryEmailAddress) then next member-loop.
 
         assign
-            oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
+            oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE ACCOUNT OBJECT */
             oPersonBO          = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE RELATIONSHIP OBJECT */
+            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Account)  /* GRABS THE RELATIONSHIP OBJECT */
             permissionsUpdated = no
             WebUserUpdated     = no.
         
@@ -174,7 +174,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
     
 /*        /* LOG CHANGES */                                                                                             */
 /*        if permissionsUpdated or WebUserUpdated then run put-stream("~"" +                                            */
-/*                /*Household Number*/                                                                                  */
+/*                /*Account Number*/                                                                                  */
 /*                string(oHouseholdBO:HouseholdNumber)                                                                  */
 /*                + "~",~"" +                                                                                           */
 /*                /*Primary Guardian Person ID*/                                                                        */
@@ -198,7 +198,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
 /*                /*Email Opted In*/                                                                                    */
 /*                (if oPersonBO:GetPrimaryEmailOptedIn() then "Yes" else "No")                                          */
 /*                + "~",~"" +                                                                                           */
-/*                /*WebTrac Username*/                                                                                  */
+/*                /*WebPortal Username*/                                                                                  */
 /*                (if oPersonBO:WebUserName:UserName = "" then "None" else oPersonBO:WebUserName:UserName)              */
 /*                + "~",~"" +                                                                                           */
 /*                /*Has Web Account*/                                                                                   */
@@ -240,7 +240,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
 /*                /*Email Opted In*/                                                                                    */
 /*                (if oChildPersonBO:GetPrimaryEmailOptedIn() then "Yes" else "No")                                     */
 /*                + "~",~"" +                                                                                           */
-/*                /*WebTrac Username*/                                                                                  */
+/*                /*WebPortal Username*/                                                                                  */
 /*                (if oChildPersonBO:WebUserName:UserName = "" then "None" else oChildPersonBO:WebUserName:UserName)    */
 /*                + "~",~"" +                                                                                           */
 /*                /*Has Web Account*/                                                                                   */
@@ -298,7 +298,7 @@ procedure CheckForActiveUser:
 
             assign
                 oChildPersonBO = PersonBO:GetByID(BufMember.ID)                         /* GRABS THE CHILD FAMILY MEMBER OBJECT */
-                oChildLinkBO   = oChildPersonBO:GetLinkToRecord(oHouseholdBO:Household).  /* GRABS THE CHILD Relationship OBJECT */
+                oChildLinkBO   = oChildPersonBO:GetLinkToRecord(oHouseholdBO:Account).  /* GRABS THE CHILD Relationship OBJECT */
         
             if not valid-object(oChildPersonBO) or not valid-object(oChildLinkBO) then next bufMember-loop.
         
@@ -324,7 +324,7 @@ end procedure.
 
 /* CHANGE WEB USER */
 procedure changeWebUser:
-    define input parameter hhID as int64 no-undo.
+    define input parameter accountID as int64 no-undo.
     define input parameter childPersonID as int64 no-undo.
     define input parameter parentPersonID as int64 no-undo.
     define variable lastWebLogin    as datetime no-undo.
@@ -341,12 +341,12 @@ procedure changeWebUser:
                 numUserNamesChanged = numUserNamesChanged + 1.
             if not LogOnly then assign
                     bufWebUserName.ParentRecord = parentPersonID.
-            for first bufChildRelationship exclusive-lock where bufChildRelationship.ChildTableID = childPersonID and bufChildRelationship.ParentTableID = hhID:
+            for first bufChildRelationship exclusive-lock where bufChildRelationship.ChildTableID = childPersonID and bufChildRelationship.ParentTableID = accountID:
                 assign 
                     lastWebLogin = bufChildRelationship.WebLastLoginDateTime.
                 if not LogOnly then assign
                         bufChildRelationship.WebLastLoginDateTime = ?.
-                for first bufParentRelationship exclusive-lock where bufParentRelationship.ChildTableID = parentPersonID and bufParentRelationship.ParentTableID = hhID:
+                for first bufParentRelationship exclusive-lock where bufParentRelationship.ChildTableID = parentPersonID and bufParentRelationship.ParentTableID = accountID:
                     assign 
                         parentLastLogin = bufParentRelationship.WebLastLoginDateTime.
                     if not LogOnly then assign 

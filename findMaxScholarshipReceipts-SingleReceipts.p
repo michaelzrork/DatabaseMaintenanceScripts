@@ -43,7 +43,7 @@ define variable itemID                 as int64     no-undo.
 define variable itemCode               as character no-undo.
 define variable itemDescription        as character no-undo.
 define variable percentPaid            as decimal   no-undo.
-define variable hhNum                  as integer   no-undo.
+define variable accountNum                  as integer   no-undo.
 define variable cReceiptNumber         as integer   no-undo.
 define variable totalCharged           as decimal   no-undo.
 define variable totalPaid              as decimal   no-undo.
@@ -53,7 +53,7 @@ assign
     amountCharged          = 0
     numRecs                = 0
     percentPaid            = 0
-    hhNum                  = 0
+    accountNum                  = 0
     cReceiptNumber         = 0
     totalCharged           = 0
     totalPaid              = 0.
@@ -67,7 +67,7 @@ define temp-table ttReceiptNumber no-undo
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("HH Num,Receipt Number,Log Date, Log Time,User Name,Pay Code,Total Charged On Receipt,Total Paid by Scholarship,Total Paid Above 80%,Total Percent Paid,").
+run put-stream ("Account Num,Receipt Number,Log Date, Log Time,User Name,Pay Code,Total Charged On Receipt,Total Paid by Scholarship,Total Paid Above 80%,Total Percent Paid,").
 
 // LOOP THROUGH ALL FEES PAID BY SCHOLARSHIP
 fee-loop:
@@ -88,7 +88,7 @@ for each ChargeHistory no-lock where lookup(ChargeHistory.PayCode,scholarshipPay
     find first TransactionDetail no-lock where TransactionDetail.ID = Charge.ParentRecord no-error no-wait.
     if available TransactionDetail then assign
             itemDescription = getString(replace(TransactionDetail.Description,",",""))
-            hhNum           = TransactionDetail.EntityNumber.
+            accountNum           = TransactionDetail.EntityNumber.
     // FIND THE CHARGE FEE FOR THE PAID FEE
     run findChargeFee(ChargeHistory.ID,ChargeHistory.ParentRecord).
 end.
@@ -143,7 +143,7 @@ procedure checkReceiptTotals:
             assign
                 ttReceiptNumber.ttReceiptNumber = cReceiptNumber.
             numRecs = numRecs + 1.
-            run put-stream(string(hhNum) + "," + string(cReceiptNumber) + "," + string(ChargeHistory.LogDate) + "," + string(ChargeHistory.LogTime / 86400) + "," + ChargeHistory.UserName + "," + ChargeHistory.PayCode + "," + string(totalCharged) + "," + string(totalPaid) + "," + string(totalPaid - (totalCharged * 0.80)) + "," + string((totalPaid / totalCharged) * 100) + "%" + ",").
+            run put-stream(string(accountNum) + "," + string(cReceiptNumber) + "," + string(ChargeHistory.LogDate) + "," + string(ChargeHistory.LogTime / 86400) + "," + ChargeHistory.UserName + "," + ChargeHistory.PayCode + "," + string(totalCharged) + "," + string(totalPaid) + "," + string(totalPaid - (totalCharged * 0.80)) + "," + string((totalPaid / totalCharged) * 100) + "%" + ",").
         end.
     end.
 end procedure.

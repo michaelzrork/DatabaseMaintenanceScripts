@@ -91,7 +91,7 @@ for each MailingAddress no-lock where MailingAddress.RecordCode <> MailingAddres
 end.
 
 /* CREATE AUDIT LOG RECORD */
-run ActivityLog(xDescription,"Number of Address Records Adjusted: " + string(numRecs),"Number of Linked Household Records Adjusted: " + string(numLinked),"Number of Duplicate Address Records Deleted: " + string(numDelete)).
+run ActivityLog(xDescription,"Number of Address Records Adjusted: " + string(numRecs),"Number of Linked Account Records Adjusted: " + string(numLinked),"Number of Duplicate Address Records Deleted: " + string(numDelete)).
 
 /*************************************************************************
                             INTERNAL PROCEDURES
@@ -113,7 +113,7 @@ procedure updateRecordCode:
     end.
 end procedure.
 
-/* UPDATE HOUSEHOLD ADDRESS RECORD CODE */
+/* UPDATE ACCOUNT ADDRESS RECORD CODE */
 procedure updateHHRecordCode:
     define input parameter inpID as int64 no-undo.
     define input parameter newRecCode as character no-undo.

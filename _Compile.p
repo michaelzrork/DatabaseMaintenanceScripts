@@ -6,7 +6,7 @@
 - To use this program, replace the cProgramName with the name of your .p
 - Update the cFileLocation and cCompileLocation for your file system
 - Copy all text and paste it in a scratchpad (make sure to change your AVM to RecTrac_3.1)
-- Run from the scratchpad to avoid the need to run a full build of RecTrac
+- Run from the scratchpad to avoid the need to run a full build of RecPortal
 - If your .p doesn't syntax check, this will throw an error with the issue and halt
 - This can be run for 11.7 or 12.8 and will append your filename accordingly based on where you run it from
 
@@ -56,7 +56,7 @@ cVersions = "_" + ProgressVersion + "_" + RecTracVersion.
 
 if isDarbyFix then assign cFileLocation = "C:~\Users~\michaelzr~\OneDrive - Vermont Systems\Quickies~\Darby's Quick Fixes and In-Progress~\".
 else if isDaveFix then assign cFileLocation = "C:~\Users~\michaelzr~\OneDrive - Vermont Systems~\Quickies~\Dave B Quick Fixes~\".
-    else if isRecTracProgram then assign cFileLocation = (if ProgressVersion = "117" then "C:~\Workspace~\RecTrac_3.1~\RecTrac~\" else "C:~\Workspace_125~\RecTrac_3.1~\RecTrac~\").
+    else if isRecTracProgram then assign cFileLocation = (if ProgressVersion = "117" then "C:~\Workspace~\RecTrac_3.1~\RecPortal~\" else "C:~\Workspace_125~\RecTrac_3.1~\RecPortal~\").
         else assign cFileLocation = "C:~\Users~\michaelzr~\OneDrive - Vermont Systems~\Documents~\Quick Fixes~\Michael's Quickies~\".
 
 if index(cProgramName,"~\") > 0 then 

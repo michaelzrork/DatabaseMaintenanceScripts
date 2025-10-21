@@ -80,7 +80,7 @@ procedure updateTaxable:
     end.
 end procedure.
 
-// UPDATE HOUSEHOLDS CREATED SINCE .35 UPDATE
+// UPDATE ACCOUNTS CREATED SINCE .35 UPDATE
 procedure updateHouseholdTaxable:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
@@ -125,6 +125,6 @@ procedure ActivityLog:
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Sets all new households created since " + string(xCreationDate) + " to Taxable"
             BufActivityLog.Detail2       = "Check Document Center for setNewHHToTaxableLog for a log of Records Changed"
-            bufActivityLog.Detail3       = "Number of Household created after " + string(xCreationDate) + " set to Taxable: " + string(numHHupdated).
+            bufActivityLog.Detail3       = "Number of Account created after " + string(xCreationDate) + " set to Taxable: " + string(numHHupdated).
     end.
 end procedure.

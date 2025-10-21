@@ -4,7 +4,7 @@
 
     Syntax      : 
 
-    Description : Clear Receipt Balances on Household
+    Description : Clear Receipt Balances on Account
 
     Author(s)   : michaelzr
     Created     : 1/1/24
@@ -39,15 +39,15 @@ assign
 
 define variable numFeeRecs     as integer no-undo.
 define variable amountPaid     as decimal no-undo.
-define variable hhNum          as integer no-undo.
+define variable accountNum          as integer no-undo.
 define variable amountCharged  as decimal no-undo.
 define variable numReceiptRecs as integer no-undo.
 define variable numDetailRecs  as integer no-undo.
 assign
     numFeeRecs     = 0
     amountPaid     = 0
-    hhNum          = 46 // CUSTOMER HOUSEHOLD NUMBER
-    // hhNum          = 35 // MY TEST HH
+    accountNum          = 46 // CUSTOMER ACCOUNT NUMBER
+    // accountNum          = 35 // MY TEST HH
     amountCharged  = 0
     numReceiptRecs = 0
     numDetailRecs  = 0.
@@ -66,7 +66,7 @@ define temp-table ttReceipts no-undo
 run put-stream ("Table,ID,ParentID,Receipt Number,Original Amount Charged,Original Discount Amount,Amount Paid,New Amount Charged,").
 
 feehist-loop:
-for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Charge" and ChargeHistory.PaymentHousehold = hhNum and ChargeHistory.FeeAmount > 0 and ChargeHistory.TimeCount ne 0 and ChargeHistory.Quantity ne 0:
+for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Charge" and ChargeHistory.PaymentHousehold = accountNum and ChargeHistory.FeeAmount > 0 and ChargeHistory.TimeCount ne 0 and ChargeHistory.Quantity ne 0:
     assign 
         amountPaid = 0.
     find first Charge no-lock where Charge.ID = ChargeHistory.ParentRecord no-error no-wait.
@@ -237,7 +237,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Clear Receipt Balances on Household " + string(hhNum)
+            BufActivityLog.Detail1       = "Clear Receipt Balances on Account " + string(accountNum)
             BufActivityLog.Detail2       = "Check Document Center for clearReceiptBalanceLog for a log of Records Changed"
             bufActivityLog.Detail3       = "Number of Fees Adjusted: " + string(numFeeRecs)
             bufActivityLog.Detail4       = "Number of Receipts Adjusted: " + string(numReceiptRecs)

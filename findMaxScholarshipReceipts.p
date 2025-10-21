@@ -43,21 +43,21 @@ define variable itemID             as int64     no-undo.
 define variable itemCode           as character no-undo.
 define variable itemDescription    as character no-undo.
 define variable percentPaid        as decimal   no-undo.
-define variable hhNum              as integer   no-undo.
+define variable accountNum              as integer   no-undo.
 assign
     scholarshipPaycode = "RecAssist24,RecAssist23,RecAssist"
     amountPaid         = 0
     amountCharged      = 0
     numRecs            = 0
     percentPaid        = 0
-    hhNum              = 0.
+    accountNum              = 0.
 
 /*************************************************************************
                                 MAIN BLOCK
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("Payment ChargeHistory ID,Charge ID,Log Date,Log Time,HH Num,Receipt Number,User,Fee Description,Paycode,Amount Charged,Amount Paid,Amount Paid Over 80%,Percentage Paid by Scholarship,Item Code,Item Description,").
+run put-stream ("Payment ChargeHistory ID,Charge ID,Log Date,Log Time,Account Num,Receipt Number,User,Fee Description,Paycode,Amount Charged,Amount Paid,Amount Paid Over 80%,Percentage Paid by Scholarship,Item Code,Item Description,").
 
 for each ChargeHistory no-lock where lookup(ChargeHistory.PayCode,scholarshipPayCode) > 0 and ChargeHistory.RecordStatus = "Paid" and ChargeHistory.FeePaid > 0:
     assign 
@@ -71,7 +71,7 @@ for each ChargeHistory no-lock where lookup(ChargeHistory.PayCode,scholarshipPay
     find first TransactionDetail no-lock where TransactionDetail.ID = Charge.ParentRecord no-error no-wait.
     if available TransactionDetail then assign
             itemDescription = getString(replace(TransactionDetail.Description,",",""))
-            hhNum           = TransactionDetail.EntityNumber.
+            accountNum           = TransactionDetail.EntityNumber.
     run findChargeFee(ChargeHistory.ID,ChargeHistory.ParentRecord,ChargeHistory.ReceiptNumber).
 end.
   
@@ -98,11 +98,11 @@ procedure findChargeFee:
         assign 
             amountCharged = bufChargeHistory.FeeAmount
             percentPaid   = (amountPaid / amountCharged) * 100.
-            // "Payment ChargeHistory ID,Charge ID,Log Date,Log Time,HH Num,Receipt Number,User,Fee Description,Paycode,Amount Charged,Amount Paid,Amount Paid Over 80%,Percentage Paid by Scholarship,Item Code,Item Description,"
+            // "Payment ChargeHistory ID,Charge ID,Log Date,Log Time,Account Num,Receipt Number,User,Fee Description,Paycode,Amount Charged,Amount Paid,Amount Paid Over 80%,Percentage Paid by Scholarship,Item Code,Item Description,"
         if amountPaid > (amountCharged * 0.80) then 
         do:
             numRecs = numRecs + 1.
-            run put-stream (string(ChargeHistory.ID) + "," + string(cParentID) + "," + string(ChargeHistory.LogDate) + "," + string(ChargeHistory.LogTime / 86400) + "," + string(hhNum) + "," + string(cReceiptNumber) + "," + ChargeHistory.UserName + "," + feeDescription + "," + ChargeHistory.PayCode + "," + string(amountCharged) + "," + string(amountPaid) + "," + string(amountPaid - (amountCharged * 0.80)) + "," + string(percentPaid) + "%" + "," + itemCode + "," + itemDescription + ",").
+            run put-stream (string(ChargeHistory.ID) + "," + string(cParentID) + "," + string(ChargeHistory.LogDate) + "," + string(ChargeHistory.LogTime / 86400) + "," + string(accountNum) + "," + string(cReceiptNumber) + "," + ChargeHistory.UserName + "," + feeDescription + "," + ChargeHistory.PayCode + "," + string(amountCharged) + "," + string(amountPaid) + "," + string(amountPaid - (amountCharged * 0.80)) + "," + string(percentPaid) + "%" + "," + itemCode + "," + itemDescription + ",").
         end.
     end.  
 end procedure.

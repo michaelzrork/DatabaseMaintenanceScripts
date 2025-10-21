@@ -1,21 +1,21 @@
 /*------------------------------------------------------------------------
     File        : syncFamilyMemberStatusToHHStatus.p
-    Purpose     : Match Family Member status to the status of the Household
+    Purpose     : Match Family Member status to the status of the Account
 
     Syntax      : 
 
-    Description : This will check the status of all family members linked to a household
+    Description : This will check the status of all family members linked to a account
                   and then check to see if they are also linked to additional households
-                  before changing the status. If the HH is Active, it will change all FM
-                  to Active; but if the HH is Inactive it will check to see if there
-                  are any Active linked HH before changing the status to Inactive. If
-                  it finds an Active HH it will skip the FM and leave it Active.
+                  before changing the status. If the Account is Active, it will change all FM
+                  to Active; but if the Account is Inactive it will check to see if there
+                  are any Active linked Account before changing the status to Inactive. If
+                  it finds an Active Account it will skip the Member and leave it Active.
 
     Author(s)   : michaelzrork
     Created     : late 2022
-    Notes       : 4/19/23 - Added Inactive HH status check before sending to additionalHHcheck
-                    This ensures only HH set to Inactive get the extra check, so any HH set to
-                    Active syncs all FM regardless of additional HHs
+    Notes       : 4/19/23 - Added Inactive Account status check before sending to additionalHHcheck
+                    This ensures only Account set to Inactive get the extra check, so any Account set to
+                    Active syncs all Member regardless of additional HHs
   ----------------------------------------------------------------------*/
 
 /*************************************************************************
@@ -25,8 +25,8 @@
 def var personID             as int64 no-undo.
 def var householdID          as int64 no-undo.
 def var secondaryHouseholdID as int64 no-undo.
-def var hhStatus             as char  no-undo.
-def var hhCheck              as char  no-undo.
+def var accountStatus             as char  no-undo.
+def var accountCheck              as char  no-undo.
 def var numRecords           as int   no-undo.
 numRecords = 0.
 
@@ -34,21 +34,21 @@ numRecords = 0.
                                 MAIN BLOCK
 *************************************************************************/
 
-household-loop:
+account-loop:
 for each Account no-lock:
-    hhStatus = Account.RecordStatus.
+    accountStatus = Account.RecordStatus.
     householdID = Account.ID.
-    familymember-loop:
+    member-loop:
     for each Relationship no-lock where Relationship.ParentTableID = householdID and Relationship.Childtable = "Member":
         personID = Relationship.ChildTableID.
-        for first Member no-lock where Member.id = personID and Member.RecordStatus <> hhStatus:
-            hhCheck = "continue".
-            if hhStatus = "Inactive" then run additionalHHCheck(Member.id).
-            if hhCheck = "skip" then next familymember-loop.
+        for first Member no-lock where Member.id = personID and Member.RecordStatus <> accountStatus:
+            accountCheck = "continue".
+            if accountStatus = "Inactive" then run additionalHHCheck(Member.id).
+            if accountCheck = "skip" then next member-loop.
             run matchFMStatus (Member.id).
         end. /* FOR FIRST */
     end. /* FAMILYMEMBER-LOOP */
-end. /* END HOUSEHOLD LOOP */
+end. /* END ACCOUNT LOOP */
     
 run ActivityLog.
 
@@ -56,17 +56,17 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-/* CHECKS FOR ADDITIONAL HH SET TO ACTIVE STATUS */
+/* CHECKS FOR ADDITIONAL Account SET TO ACTIVE STATUS */
 procedure additionalHHCheck:
     def input parameter inpid as int64 no-undo.
     def buffer bufRelationship for Relationship.
-    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> householdID and hhCheck = "continue":
+    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> householdID and accountCheck = "continue":
         secondaryHouseholdID = bufRelationship.ParentTableID.
-        if can-find(first Account where Account.ID = secondaryHouseholdID and Account.RecordStatus <> hhStatus) then hhCheck = "skip".
+        if can-find(first Account where Account.ID = secondaryHouseholdID and Account.RecordStatus <> accountStatus) then accountCheck = "skip".
     end. /* END FOR EACH */
 end procedure.
 
-/* SETS FM STATUS TO STATUS OF HH */
+/* SETS Member STATUS TO STATUS OF Account */
 procedure matchFMStatus:
     def input parameter inpid as int64.
     def buffer bufMember for Member.
@@ -74,7 +74,7 @@ procedure matchFMStatus:
         find bufMember exclusive-lock where bufMember.id = inpid no-error no-wait.
         if available bufMember then assign
             numRecords = numRecords + 1
-            bufMember.RecordStatus = hhStatus.
+            bufMember.RecordStatus = accountStatus.
     end. /* DO FOR */
 end procedure.
     
@@ -87,7 +87,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.LogTime       = time
-            BufActivityLog.Detail1       = "Set FM status to match HH status"
+            BufActivityLog.Detail1       = "Set Member status to match Account status"
             BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(numRecords).
     end. /* DO FOR */
 end procedure.

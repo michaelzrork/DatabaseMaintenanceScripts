@@ -4,7 +4,7 @@
 
     Syntax      : 
 
-    Description : This program will create a list of all current HH and FM Features, then remove any Feature 
+    Description : This program will create a list of all current Account and Member Features, then remove any Feature 
                     still linked in the Account or Member tables that are no longer in the system
 
     Author(s)   : michaelzr
@@ -33,8 +33,8 @@ countVar = 0.
                                 MAIN BLOCK
 *************************************************************************/
 
-// CREATE HOUSEHOLD FEATURE LIST
-for each LookupCode no-lock where LookupCode.RecordType = "Household Feature":
+// CREATE ACCOUNT FEATURE LIST
+for each LookupCode no-lock where LookupCode.RecordType = "Account Feature":
     hhFeatureList = list(LookupCode.RecordCode,hhFeatureList).
 end.
     
@@ -43,8 +43,8 @@ for each LookupCode no-lock where LookupCode.RecordType = "Family Member Feature
     fmFeatureList = list(LookupCode.RecordCode,fmFeatureList).
 end.
 
-// COMPARE HH FEATURES TO hhFeatureList
-household-loop:
+// COMPARE Account FEATURES TO hhFeatureList
+account-loop:
     for each Account no-lock where Account.Features <> "":
         oldFeatures = Account.Features.
         newFeatures = "".
@@ -56,8 +56,8 @@ household-loop:
         if newFeatures <> oldFeatures then run purgeHHFeatures(Account.ID).
     end.
     
-// COMPARE FM FEATURES TO fmFeatureList
-familymember-loop:
+// COMPARE Member FEATURES TO fmFeatureList
+member-loop:
     for each Member no-lock where Member.Features <> "":
         oldFeatures = Member.Features.
         newFeatures = "".
@@ -75,7 +75,7 @@ familymember-loop:
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// WRITES newFeatures LIST TO THE HH FEATURES
+// WRITES newFeatures LIST TO THE Account FEATURES
 procedure purgeHHFeatures:
     define input parameter inpid as int64.
     define buffer bufAccount for Account.
@@ -87,7 +87,7 @@ procedure purgeHHFeatures:
     end.
 end procedure.
 
-// WRITES newFeatures LIST TO THE FM FEATURES
+// WRITES newFeatures LIST TO THE Member FEATURES
 procedure purgeFMFeatures:
     define input parameter inpid as int64.
     define buffer bufMember for Member.
@@ -109,7 +109,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.LogTime       = time
-            BufActivityLog.Detail1       = "Purge all Features from HH and FM that are no longer in the system"
+            BufActivityLog.Detail1       = "Purge all Features from Account and Member that are no longer in the system"
             BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(numRecords).
     end.
   

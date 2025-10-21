@@ -60,7 +60,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("Household Number,Name,ReceiptNumber,Item,Bill Date,Bill Status,Prepay Payment Type,Prepay Amount,Prepay Paycode,").
+run put-stream ("Account Number,Name,ReceiptNumber,Item,Bill Date,Bill Status,Prepay Payment Type,Prepay Amount,Prepay Paycode,").
 
 for each PaymentTransaction no-lock where PaymentTransaction.paycode = "None" and PaymentTransaction.paymenttype begins "Pre" and SAreceiptPayment.receiptnumber = 0:
     assign

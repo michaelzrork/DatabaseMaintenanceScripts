@@ -4,7 +4,7 @@
 
     Syntax      : 
 
-    Description : Fix which phone number is linked to the Household based on primary guardian phone number
+    Description : Fix which phone number is linked to the Account based on primary guardian phone number
 
     Author(s)   : michaelzr
     Created     : 10/29/2024
@@ -61,7 +61,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-// run put-stream ("Household Number,Household ID,Household Name,Household Phone Number,Person Phone Number,").
+// run put-stream ("Account Number,Account ID,Account Name,Account Phone Number,Person Phone Number,").
 
 for each Relationship no-lock where Relationship.Primary = true and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
     find first Member no-lock where Member.ID = Relationship.ChildTableID no-error no-wait.
@@ -187,7 +187,7 @@ procedure ActivityLog:
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
-            BufActivityLog.Detail1       = "Fix which phone number is linked to the Household based on primary guardian phone number"
+            BufActivityLog.Detail1       = "Fix which phone number is linked to the Account based on primary guardian phone number"
             BufActivityLog.Detail2       = "Number of Account Records updated: " + string(numRecs)
             BufActivityLog.Detail3       = "Number of PhoneNumber Records deleted: " + string(numDeletedPhone)
             BufActivityLog.Detail4       = "Number of PhoneNumber records set to secondary: " + string(numPrimaryUntoggled)

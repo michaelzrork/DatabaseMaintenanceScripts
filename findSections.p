@@ -47,7 +47,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Member ID,Household Number,Name,Description,Status,Receipt List,Transaction Date,TransactionDetail Begin Date,Section Begin Date,Section ID,ePACT Section,Section Status,Archived,").
+run put-stream ("Member ID,Account Number,Name,Description,Status,Receipt List,Transaction Date,TransactionDetail Begin Date,Section Begin Date,Section ID,ePACT Section,Section Status,Archived,").
 
 person-loop:
 do ix = 1 to num-entries(personList):
@@ -67,7 +67,7 @@ do ix = 1 to num-entries(personList):
 /*    do:                                                                                                                                                                                                                                                                  */
 /*        find first Relationship no-lock where Relationship.ChildTableID = Member.ID no-error no-wait.                                                                                                                                                                              */
 /*        if available Relationship then find first Account no-lock where Account.ID = Relationship.ParentTableID.                                                                                                                                                             */
-/*        run put-stream(string(Member.ID) + "," + (if available Account then string(Account.EntityNumber) else "No Household Found") + "," + Member.FirstName + " " + Member.LastName + "," + "No Enrollments Found" + "," + "" + "," + "," + "," + ",").*/
+/*        run put-stream(string(Member.ID) + "," + (if available Account then string(Account.EntityNumber) else "No Account Found") + "," + Member.FirstName + " " + Member.LastName + "," + "No Enrollments Found" + "," + "" + "," + "," + "," + ",").*/
 /*    end.                                                                                                                                                                                                                                                                 */
 end.
   

@@ -4,7 +4,7 @@
 
     Syntax      : 
 
-    Description : Purge all MailingAddress Records without a Household Link
+    Description : Purge all MailingAddress Records without a Account Link
 
     Author(s)   : michaelzr
     Created     : 12/18/2024
@@ -69,7 +69,7 @@ procedure ActivityLog:
             bufActivityLog.UserName      = "SYSTEM"
             bufActivityLog.LogDate       = today
             bufActivityLog.LogTime       = time
-            bufActivityLog.Detail1       = "Purge all MailingAddress Records without a Household Link"
+            bufActivityLog.Detail1       = "Purge all MailingAddress Records without a Account Link"
             bufActivityLog.Detail2       = "Number of records deleted: " + string(recCount).
     end.
 end procedure.

@@ -41,7 +41,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,ChargeHistory.ID,ChargeHistory.RecordStatus,ChargeHistory.ReceiptNumber,ChargeHistory.ParentTable,ChargeHistory.ParentRecord,Charge.Description,Charge.FeeGroupCode,Charge.ReceiptNumber,Charge.RecordStatus,Charge.InstallmentBillingOption,Charge.ParentTable,Charge.ParentRecord,TransactionDetail.Description,TransactionDetail.ContractID,Agreement.ShortDescription").
+run put-stream ("Account Number,ChargeHistory.ID,ChargeHistory.RecordStatus,ChargeHistory.ReceiptNumber,ChargeHistory.ParentTable,ChargeHistory.ParentRecord,Charge.Description,Charge.FeeGroupCode,Charge.ReceiptNumber,Charge.RecordStatus,Charge.InstallmentBillingOption,Charge.ParentTable,Charge.ParentRecord,TransactionDetail.Description,TransactionDetail.ContractID,Agreement.ShortDescription").
 
 // ChargeHistory Loop
 for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Pending" and Receiptnumber = 0 and ChargeHistory.PaymentHousehold = 1069246:

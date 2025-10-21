@@ -11,7 +11,7 @@
     Author(s)   : michaelzrork
     Created     : late 2022/early2023
     Notes       : - This will only work if there are only two cateogories: Res and Non-res, and they must be defined (and are case sensitive)         
-                  03/10/23 - Updated to do hhCheck on Family Members in Non-Resident HHs so that if they are also linked to a Resident HH they are not changed to Non-Res         
+                  03/10/23 - Updated to do accountCheck on Family Members in Non-Resident HHs so that if they are also linked to a Resident Account they are not changed to Non-Res         
                   06/14/23 - Added logic to work with zip+4, checking just the first 5 of the zip code using substring
                   02/29/24 - Minor tweaks to the code, added lookup for Non-Res category from static parameters
                   
@@ -28,11 +28,11 @@
                       - The new program will look for the default No Zip Match Category, as set in Static Parameters, and treat it as the non-resident 
                         category when making a determination for updating categories
                       - The new program logic for Non-Res categories is as such:
-                        - If the household has no zip code, they are given the no match category
-                        - If the household zip code cannot be found in address management, they are given the no match category
+                        - If the account has no zip code, they are given the no match category
+                        - If the account zip code cannot be found in address management, they are given the no match category
                         - If the address match category is not in the system, they are set to the no match category
                       - The new program will skip guest, internal, and model households. This program will not.
-                      - In the new program, if the Household profile is set to "Do Not Sync Family Members", then it will only update the Household Category and fee codes
+                      - In the new program, if the Account profile is set to "Do Not Sync Family Members", then it will only update the Account Category and fee codes
                   
   ----------------------------------------------------------------------*/
 
@@ -54,7 +54,7 @@ define variable residentZipCodeList as character no-undo.
 define variable newCategory as character no-undo.
 define variable newFeeCode as character no-undo.
 define variable feecodetoReplace as character no-undo.
-define variable hhCheck as character no-undo.
+define variable accountCheck as character no-undo.
 define variable householdID as integer no-undo.
 residentZipCodeList = "".
 
@@ -88,13 +88,13 @@ for each MailingAddress no-lock where MailingAddress.Category = resCategory:
 end.
 
 
-resHHLoop:  // FOR EACH HH WITH ZIP CODE IN residentZipCodeList, CHECK IF THEY ARE SET TO NON-RES AND SET THEM TO RESIDENT
+resHHLoop:  // FOR EACH Account WITH ZIP CODE IN residentZipCodeList, CHECK IF THEY ARE SET TO NON-RES AND SET THEM TO RESIDENT
     for each Account no-lock where lookup(substring(Account.PrimaryZipCode,1,5),residentZipCodeList) > 0: 
         newCategory = resCategory.
         newFeeCode = resFeeCode.
         feecodetoReplace = nonResFeeCode.
         if Account.Category <> resCategory or lookup(resFeeCode,Account.CodeValue) = 0 or lookup(nonResFeeCode,Account.CodeValue) > 0 then run updateHousehold (Account.id).
-        // ALSO CHANGE THE FM LINKED IN Member OR LSTeam
+        // ALSO CHANGE THE Member LINKED IN Member OR LSTeam
         resFMLoop:
             for each Relationship no-lock where Relationship.ParentTableID = Account.id:
                 if Relationship.Childtable = "Member" then 
@@ -113,7 +113,7 @@ resHHLoop:  // FOR EACH HH WITH ZIP CODE IN residentZipCodeList, CHECK IF THEY A
             end. // resFMLoop            
     end. // resHHLoop
             
-nonResHHLoop:   // FOR EACH HH WITH ZIP CODE not IN residentZipCodeList, CHECK IF THEY ARE SET TO RESIDENT AND SET THEM TO NON-RES
+nonResHHLoop:   // FOR EACH Account WITH ZIP CODE not IN residentZipCodeList, CHECK IF THEY ARE SET TO RESIDENT AND SET THEM TO NON-RES
     for each Account no-lock where lookup(substring(Account.PrimaryZipCode,1,5),residentZipCodeList) = 0:
         householdID = Account.ID.
         newCategory = nonResCategory.
@@ -126,18 +126,18 @@ nonResHHLoop:   // FOR EACH HH WITH ZIP CODE not IN residentZipCodeList, CHECK I
                 if Relationship.Childtable = "Member" then 
                     do:
                         for first Member no-lock where Member.id = Relationship.ChildTableID and (Member.Category <> nonResCategory or lookup(nonResFeeCode,Member.CodeValue) = 0 or lookup(resFeeCode,Member.CodeValue) > 0):
-                            hhCheck = "continue".
+                            accountCheck = "continue".
                             run additionalHHCheck(Member.id).
-                            if hhCheck = "skip" then next nonResFMLoop.
+                            if accountCheck = "skip" then next nonResFMLoop.
                             run updatePerson (Member.id).
                         end.
                     end. // MEMBER UPDATE
                 else if Relationship.Childtable = "LSTeam" then 
                     do:
                         for first LSTeam no-lock where LSTeam.id = Relationship.ChildTableID and (LSTeam.Category <> nonResCategory or lookup(nonResFeeCode,LSTeam.CodeValue) = 0 or lookup(resFeeCode,LSTeam.CodeValue) > 0):
-                            hhCheck = "continue".
+                            accountCheck = "continue".
                             run additionalHHcheck(LSTeam.id).
-                            if hhCheck = "skip" then next nonResFMLoop.
+                            if accountCheck = "skip" then next nonResFMLoop.
                             run updateTeam (LSTeam.id).
                         end.
                     end. // LSTEAM UPDATE
@@ -152,17 +152,17 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-procedure additionalHHCheck: // CHECKS FOR LINKED RES HH AND SKIPS FM AND TEAM UPDATE IF FOUND
+procedure additionalHHCheck: // CHECKS FOR LINKED RES Account AND SKIPS Member AND TEAM UPDATE IF FOUND
     define input parameter inpid as int64 no-undo.
     define variable secondaryHouseholdID as integer no-undo.
     define buffer bufRelationship for Relationship.
-    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> householdID and hhCheck = "continue":
+    for each bufRelationship no-lock where bufRelationship.ChildTableID = inpid and bufRelationship.ChildTable = "Member" and bufRelationship.ParentTable = "Account" and bufRelationship.ParentTableID <> householdID and accountCheck = "continue":
         secondaryHouseholdID = bufRelationship.ParentTableID.
-        if can-find(first Account where Account.ID = secondaryHouseholdID and Account.Category = resCategory) then hhCheck = "skip".
+        if can-find(first Account where Account.ID = secondaryHouseholdID and Account.Category = resCategory) then accountCheck = "skip".
     end. // END FOR EACH
 end procedure.
 
-procedure updateHousehold: // FOR EACH HH PASSED THROUGH, SET THE Account CATEGORY AND FEECODE TO newCategory AND newFeeCode
+procedure updateHousehold: // FOR EACH Account PASSED THROUGH, SET THE Account CATEGORY AND FEECODE TO newCategory AND newFeeCode
     define input parameter inpid as int64.
     define variable countVar as int no-undo.
     define variable oldFeeCodes as character no-undo.

@@ -204,15 +204,15 @@ for each UserSession no-lock where UserSession.LogoutDate = ? while numRecs le 2
     end. /* END ACCESS CONTROL SESSION CHECKS */
 
     /* USE A DIFFERENT CHECK FOR WEBTRAC INVITES */
-    if UserSession.InterfaceType = "WebTrac-Invite" then
+    if UserSession.InterfaceType = "WebPortal-Invite" then
     do:
         run CheckWebInvite.
         next session-loop.
     end.
 
     else if UserSession.ServerLoginDate = ? and
-            (LastActiveDateTime + ((if UserSession.InterfaceType = "RecTrac" then RecTracGuest
-        else if UserSession.InterfaceType = "Mobile RecTrac" then MRecTracGuest
+            (LastActiveDateTime + ((if UserSession.InterfaceType = "RecPortal" then RecTracGuest
+        else if UserSession.InterfaceType = "Mobile RecPortal" then MRecTracGuest
         else WebTracGuest) * 60000)) lt CurrentDateTime then
         do:
             assign
@@ -227,16 +227,16 @@ for each UserSession no-lock where UserSession.LogoutDate = ? while numRecs le 2
                 lookup(TransactionDetail.CartStatus,{&SaDetailInCartList}) ne 0:
             end.
             if available TransactionDetail and
-                (LastActiveDateTime + ((if UserSession.InterfaceType = "RecTrac" then RecTracCart
-            else if UserSession.InterfaceType = "Mobile RecTrac" then MRecTracCart
+                (LastActiveDateTime + ((if UserSession.InterfaceType = "RecPortal" then RecTracCart
+            else if UserSession.InterfaceType = "Mobile RecPortal" then MRecTracCart
             else WebTracCart) * 60000)) lt CurrentDateTime then
             do:
                 assign
                     numRecs = numRecs + 1.
                 run sessioninfo-end (rowid(UserSession)).
             end.
-            else if UserSession.ServerLoginDate ne ? and ((LastActiveDateTime + ((if UserSession.InterfaceType = "RecTrac" then RecTracInactive
-                else if UserSession.InterfaceType = "Mobile RecTrac" then MRecTracInactive
+            else if UserSession.ServerLoginDate ne ? and ((LastActiveDateTime + ((if UserSession.InterfaceType = "RecPortal" then RecTracInactive
+                else if UserSession.InterfaceType = "Mobile RecPortal" then MRecTracInactive
                 else WebTracInactive) * 60000)) lt CurrentDateTime ) then
                 do:
                     assign
@@ -255,7 +255,7 @@ end.
 run ActivityLog("End Sessions Complete; Check Document Center for Logfile of sessions ended",
     "Number of Sessions Ended: " + string(numRecs + numAC + numWebInvite + numKiosk) +  
     "; Breakdown of Sessions - " +
-    "RecTrac/WebTrac Sessions Closed: " + string(numRecs) +
+    "RecPortal/WebPortal Sessions Closed: " + string(numRecs) +
     "; Access Control Closed: " + string(numAC) + 
     "; WebInvite Closed: " + string(numWebInvite) + 
     "; Kiosk Closed: " + string(numKiosk) +
@@ -278,7 +278,7 @@ procedure CheckWebInvite:
         
     run put-stream ("~"" +
         /*Note*/
-        "WebTrac Invite Session Closed"
+        "WebPortal Invite Session Closed"
         + "~",~"" +
         /*UserSession.ID*/
         getString(string(UserSession.ID))

@@ -43,7 +43,7 @@ assign
     numSAFeeRecsUpdated   = 0.
 
 // EVERYTHING ELSE
-define variable hhNum               as int64     no-undo.
+define variable accountNum               as int64     no-undo.
 define variable feeHistID           as int64     no-undo.
 define variable feeHistReceipt      as integer   no-undo.
 define variable feeID               as int64     no-undo.
@@ -60,7 +60,7 @@ define variable contractDescription as character no-undo.
 define variable feeType             as character no-undo.
 
 assign 
-    hhNum               = 0
+    accountNum               = 0
     feeHistID           = 0
     feeHistReceipt      = 0
     feeID               = 0
@@ -81,7 +81,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,
+run put-stream ("Account Number,
                 Modification,
                 Table,
                 Record ID,
@@ -111,7 +111,7 @@ for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Pending" and 
     
     // SET LOG FILE VARIABLES
     assign 
-        hhNum               = ChargeHistory.PaymentHousehold
+        accountNum               = ChargeHistory.PaymentHousehold
         feeHistID           = ChargeHistory.ID
         feeHistReceipt      = ChargeHistory.ReceiptNumber
         feeID               = ChargeHistory.ParentRecord
@@ -163,8 +163,8 @@ procedure deletePendingFee:
         if available bufChargeHistory then 
         do:
             run put-stream("~"" +
-                // Household Number
-                getString(string(hhNum)) + "~",~"" +
+                // Account Number
+                getString(string(accountNum)) + "~",~"" +
                 // Modification
                 "Deleted Pending Fee" + "~",~"" +
                 // Table
@@ -214,8 +214,8 @@ procedure deleteRelatedFees:
     do for bufChargeHistory transaction:
         for each bufChargeHistory exclusive-lock where bufChargeHistory.ID <> inpID and bufChargeHistory.ParentRecord = feeID:
             run put-stream("~"" + 
-                // Household Number
-                getString(string(hhNum)) + "~",~"" + 
+                // Account Number
+                getString(string(accountNum)) + "~",~"" + 
                 // Modification
                 "Deleted Related Fee" + "~",~"" +
                 // Table
@@ -269,8 +269,8 @@ procedure updateCharge:
                 numSAFeeRecsUpdated   = numSAFeeRecsUpdated + 1
                 bufCharge.RecordStatus = "NoCharge".
             run put-stream("~"" +
-                // Household Number
-                getString(string(hhNum)) + "~",~"" +
+                // Account Number
+                getString(string(accountNum)) + "~",~"" +
                 // Modification
                 "Update Fee to NoCharge" + "~",~"" +
                 // Table

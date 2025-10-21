@@ -18,8 +18,8 @@
 {Includes/Framework.i}
 {Includes/BusinessLogic.i}
 
-define variable hhID                     as int64     no-undo.
-define variable hhNum                    as integer   no-undo.
+define variable accountID                     as int64     no-undo.
+define variable accountNum                    as integer   no-undo.
 define variable originalRelationshipCode as character no-undo.
 define variable primaryGuardianCode      as character no-undo.
 define variable hhFirstName              as character no-undo.
@@ -70,15 +70,15 @@ do:
 end.    
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Record Notes,Record ID,Household Number,Original Relationship Code,New Relationship Code,Household ID,Household First Name,Household Last Name,Person ID,Person First Name,Person Last Name").
+run put-stream ("Record Notes,Record ID,Account Number,Original Relationship Code,New Relationship Code,Account ID,Account First Name,Account Last Name,Person ID,Person First Name,Person Last Name").
 
 // RELATIONSHIP LOOP
 for each Relationship no-lock where primary = true and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member" and Relationship.Relationship <> primaryGuardianCode:
     assign 
-        hhID                     = Relationship.ParentTableID
+        accountID                     = Relationship.ParentTableID
         personID                 = Relationship.ChildTableID
         originalRelationshipCode = if Relationship.Relationship = "" then "No Relationship Code" else getString(Relationship.Relationship)
-        hhNum                    = 0
+        accountNum                    = 0
         hhFirstName              = ""
         hhLastName               = ""
         personFirstName          = ""
@@ -108,7 +108,7 @@ for each Relationship no-lock where primary = true and Relationship.ParentTable 
     do:
         assign
             canFindHH   = true
-            hhNum       = Account.EntityNumber
+            accountNum       = Account.EntityNumber
             hhFirstName = if Account.FirstName = "" then "No First Name" else getString(Account.FirstName)
             hhLastName  = if Account.LastName = "" then "No Last Name" else getString(Account.LastName).
         if hhFirstName = "No First Name" and hhLastName = "No Last Name" and Account.OrganizationName <> "" then assign
@@ -119,24 +119,24 @@ for each Relationship no-lock where primary = true and Relationship.ParentTable 
     do:
         assign
             canFindHH   = false
-            hhID        = 0
-            hhNum       = 0
+            accountID        = 0
+            accountNum       = 0
             hhFirstName = "No Account Record Available"
             hhLastName  = "".
     end.
 
     // NOT SURE IF I WANT TO BOTHER WITH CLEARING OUT ORPHANED RELATIONSHIP RECORDS JUST YET... THIS SHOULD WORK FINE WITHOUT THIS STUFF    
 
-    // IF WE CAN'T FIND THE FM BUT WE CAN FIND A HH, LET'S FIND ADDITIONAL FAMILY MEMBERS AND MARK ONE OF THEM AS THE PRIMARY GUARDIAN, OTHERWISE LET'S DELETE THE HOUSEHOLD
+    // IF WE CAN'T FIND THE Member BUT WE CAN FIND A HH, LET'S FIND ADDITIONAL FAMILY MEMBERS AND MARK ONE OF THEM AS THE PRIMARY GUARDIAN, OTHERWISE LET'S DELETE THE ACCOUNT
     if not canFindFM and canFindHH then run findAdditionalFM(Relationship.ParentTableID,Relationship.ChildTableID).
         
     // IF THEY ARE NOT IN ANOTHER HH, THEN LET'S CHECK IF THERE IS PURCHASE HISTORY; IF NO HISTORY, DELETE THE RELATIONSHIP AND THE FM; IF THERE IS PURCHASE HISTORY LET'S JUST LOG IT FOR NOW
     if canFindFM and not canFindHH then run findAdditionalHH(Relationship.ParentTableID,Relationship.ChildTableID).
     
-    // IF WE CAN'T FIND THE FM AND WE CAN'T FIND THE HH, THEN LET'S DELETE THIS ORPHANED RELATIONSHIP RECORD
+    // IF WE CAN'T FIND THE Member AND WE CAN'T FIND THE HH, THEN LET'S DELETE THIS ORPHANED RELATIONSHIP RECORD
     if not canFindFM and not canFindHH then run deleteRelationship(Relationship.ID,"No Member or Account Records Available").
     
-    // IF WE CAN FIND THE FM AND WE CAN FIND A HH, UPDATE THE RELATIONSHIP CODE
+    // IF WE CAN FIND THE Member AND WE CAN FIND A HH, UPDATE THE RELATIONSHIP CODE
     if canFindFM and canFindHH then run fixRelationshipCode(Relationship.ID).
     
 end.
@@ -155,54 +155,54 @@ run ActivityLog ("Updated Relationship Code for all Primary Guardians to '" + pr
                             INTERNAL PROCEDURES
 *************************************************************************/ 
 
-// FIND ADDITIONAL FAMILY MEMBERS ON THE SAME HOUSEHOLD 
+// FIND ADDITIONAL FAMILY MEMBERS ON THE SAME ACCOUNT 
 procedure findAdditionalFM:
     define input parameter parentID as int64 no-undo.
     define input parameter childID as int64 no-undo.
     define buffer bufRelationship   for Relationship.
     define buffer bufMember for Member.
     
-    // FIND ANY OTHER FM ON THE HH WITH THE PRIMARY TOGGLE, IF AVAILABLE, DELETE THE RELATIONSHIP RECORD WITH THE MISSING MEMBER RECORD
+    // FIND ANY OTHER Member ON THE Account WITH THE PRIMARY TOGGLE, IF AVAILABLE, DELETE THE RELATIONSHIP RECORD WITH THE MISSING MEMBER RECORD
     // THE OTHER RELATIONSHIP RECORD WITH THE PRIMARY TOGGLE WILL NATURALLY BE FED THROUGH THE LOOP AND BE UPDATED OR DELETED
     for first bufRelationship no-lock where bufRelationship.ParentTableID = parentID and bufRelationship.ChildTableID <> childID and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" and bufRelationship.Primary = true by bufRelationship.Order:
-        run deleteRelationship (Relationship.ID,"No Member Record; Addtional FM Linked to HH has Primary Toggle Enabled - Confirm they are linked correctly").
+        run deleteRelationship (Relationship.ID,"No Member Record; Addtional Member Linked to Account has Primary Toggle Enabled - Confirm they are linked correctly").
         return.
     end.
     
-    // IF NO OTHER FM HAS THE PRIMARY TOGGLE, FIND ANY OTHER FM ON THE HH WITHOUT A PRIMARY TOGGLE
-    // DELETE THE RELATIONSHIP RECORD WITH THE MISSING MEMBER RECORD AND NOTATE IN THE LOG THAT THERE IS A FM MEMBER AVAILABLE TO MANUALLY BE LINKED AS THE PRIMARY MEMBER
+    // IF NO OTHER Member HAS THE PRIMARY TOGGLE, FIND ANY OTHER Member ON THE Account WITHOUT A PRIMARY TOGGLE
+    // DELETE THE RELATIONSHIP RECORD WITH THE MISSING MEMBER RECORD AND NOTATE IN THE LOG THAT THERE IS A Member MEMBER AVAILABLE TO MANUALLY BE LINKED AS THE PRIMARY MEMBER
     for each bufRelationship no-lock where bufRelationship.ParentTableID = parentID and bufRelationship.ChildTableID <> childID and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" and bufRelationship.Primary = false by bufRelationship.Order:
         find first bufMember no-lock where bufMember.ID = bufRelationship.ChildTableID no-error no-wait.
         if available bufMember then 
         do:
-            run deleteRelationship (Relationship.ID,"No Member Record; Additional FM available to manually be linked as Primary on HH").
+            run deleteRelationship (Relationship.ID,"No Member Record; Additional Member available to manually be linked as Primary on HH").
             return.
         end.
     end.
     
-    // IF NO ADDITIONAL FM ON THE HH HAS AN MEMBER RECORD, DELETE THE RELATIONSHIP, NOTE THAT THERE IS AN ORPHANED HH RECORD    
-    run deleteRelationship(Relationship.ID,"No Member Record; No Additional FM on HH - Potentially Orphaned HH Record").
-    // IF THE NOW ORPHANED HH HAS NO PURCHASE HISTORY, DELETE THE HH
-    find first TransactionDetail no-lock where TransactionDetail.EntityNumber = hhNum no-error no-wait. // SHOULD PROBABLY MAKE THIS A FOR FIRST AND ADD RECORDSTATUS <> "REMOVED"
+    // IF NO ADDITIONAL Member ON THE Account HAS AN MEMBER RECORD, DELETE THE RELATIONSHIP, NOTE THAT THERE IS AN ORPHANED Account RECORD    
+    run deleteRelationship(Relationship.ID,"No Member Record; No Additional Member on Account - Potentially Orphaned Account Record").
+    // IF THE NOW ORPHANED Account HAS NO PURCHASE HISTORY, DELETE THE HH
+    find first TransactionDetail no-lock where TransactionDetail.EntityNumber = accountNum no-error no-wait. // SHOULD PROBABLY MAKE THIS A FOR FIRST AND ADD RECORDSTATUS <> "REMOVED"
     if not available TransactionDetail then run deleteSAHousehold(Relationship.ParentTableID).
 end procedure. // findAdditionalFM
 
 
-// FIND ADDITIONAL HOUSEHOLD FOR MEMBER RECORD
+// FIND ADDITIONAL ACCOUNT FOR MEMBER RECORD
 procedure findAdditionalHH:
     define input parameter parentID as int64 no-undo.
     define input parameter childID as int64 no-undo.
     define buffer bufRelationship for Relationship.
     do for bufRelationship transaction:
-        // FIND A LINK RECORD FOR THE FM LINKED TO ANOTHER HH, IF AVAILABLE, DELETE THE RELATIONSHIP FOR THE MISSING HH
+        // FIND A LINK RECORD FOR THE Member LINKED TO ANOTHER HH, IF AVAILABLE, DELETE THE RELATIONSHIP FOR THE MISSING HH
         for first bufRelationship no-lock where bufRelationship.ChildTableID = childID and bufRelationship.ParentTableID <> parentID and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" by bufRelationship.Order:
             run deleteRelationship(Relationship.ID,"No Account Record, Member Record Linked to additional HH").
             return.
         end.
-        // IF THE FM IS NOT LINKED TO A SECOND HH, THEN DELETE THE RELATIONSHIP AND THE MEMBER RECORDS (SO LONG AS THERE IS NO PURCHASE HISTORY)
+        // IF THE Member IS NOT LINKED TO A SECOND HH, THEN DELETE THE RELATIONSHIP AND THE MEMBER RECORDS (SO LONG AS THERE IS NO PURCHASE HISTORY)
         if not available bufRelationship then 
         do:
-            run deleteRelationship(Relationship.ID,"No Account Record, Member not linked to additional HH - Potentially Orphaned FM Record").
+            run deleteRelationship(Relationship.ID,"No Account Record, Member not linked to additional Account - Potentially Orphaned Member Record").
             find first TransactionDetail no-lock where TransactionDetail.PatronLinkID = childID no-error no-wait. // SHOULD PROBABLY MAKE THIS A FOR FIRST AND ADD RECORDSTATUS <> "REMOVED"
             if not available TransactionDetail then run deleteMember(childID).
         end.
@@ -220,14 +220,14 @@ procedure deleteRelationship:
         if available bufRelationship then 
         do:
             deletedRelationshipCount = deletedRelationshipCount + 1.
-            run put-stream ("~"" + "Relationship Record Deleted; " + deleteNote + "~"," + string(bufRelationship.ID) + "," + string(hhNum) + "," + originalRelationshipCode + "," + "N/A" + "," + string(hhID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
+            run put-stream ("~"" + "Relationship Record Deleted; " + deleteNote + "~"," + string(bufRelationship.ID) + "," + string(accountNum) + "," + originalRelationshipCode + "," + "N/A" + "," + string(accountID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
             delete bufRelationship.
         end.
     end.
 end procedure.
 
 
-// DELETE ORPHAN HOUSEHOLD
+// DELETE ORPHAN ACCOUNT
 procedure deleteAccount:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
@@ -235,7 +235,7 @@ procedure deleteAccount:
         find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
         if available bufAccount then 
         do:
-            run put-stream ("~"" + "Account Recorded Deleted; Orphaned Record with no purchase history" + "~"," + string(bufAccount.ID) + "," + string(hhNum) + "," + "N/A" + "," + "N/A" + "," + string(hhID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
+            run put-stream ("~"" + "Account Recorded Deleted; Orphaned Record with no purchase history" + "~"," + string(bufAccount.ID) + "," + string(accountNum) + "," + "N/A" + "," + "N/A" + "," + string(accountID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
             delete bufAccount.
             numHHDeleted = numHHDeleted + 1.
         end. 
@@ -251,7 +251,7 @@ procedure deleteMember:
         find first bufMember exclusive-lock where bufMember.ID = inpID no-error no-wait.
         if available bufMember then 
         do:
-            run put-stream ("~"" + "Member Recorded Deleted; Orphaned Record with no purchase history" + "~"," + string(bufMember.ID) + "," + string(hhNum) + "," + "N/A" + "," + "N/A" + "," + string(hhID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
+            run put-stream ("~"" + "Member Recorded Deleted; Orphaned Record with no purchase history" + "~"," + string(bufMember.ID) + "," + string(accountNum) + "," + "N/A" + "," + "N/A" + "," + string(accountID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
             delete bufMember.
             numFMDeleted = numFMDeleted + 1.
         end.
@@ -267,7 +267,7 @@ procedure fixRelationshipCode:
         find bufRelationship exclusive-lock where bufRelationship.ID = inpid no-error no-wait.
         if available bufRelationship then 
         do:
-            run put-stream ("~"" + "Primary Guardian Relationship Code Updated" + "~"," + string(bufRelationship.ID) + "," + string(hhNum) + "," + originalRelationshipCode + "," + primaryGuardianCode + "," + string(hhID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
+            run put-stream ("~"" + "Primary Guardian Relationship Code Updated" + "~"," + string(bufRelationship.ID) + "," + string(accountNum) + "," + originalRelationshipCode + "," + primaryGuardianCode + "," + string(accountID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
             assign
                 fixedRelationshipCount       = fixedRelationshipCount + 1
                 bufRelationship.Relationship = primaryGuardianCode.

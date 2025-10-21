@@ -41,7 +41,7 @@ assign
 define variable numRecsWithoutHistory as integer   no-undo.
 define variable numRecsWithHistory    as integer   no-undo.
 define variable hasFeeHistory         as logical   no-undo.
-define variable hhNum                 as integer   no-undo.
+define variable accountNum                 as integer   no-undo.
 define variable noFeeID               as int64     no-undo.
 define variable noFeeReceiptNumber    as integer   no-undo.
 define variable noFeeLogDate          as character no-undo.
@@ -53,7 +53,7 @@ assign
     numRecsWithHistory    = 0
     numRecsWithoutHistory = 0
     hasFeeHistory         = false
-    hhNum                 = 0
+    accountNum                 = 0
     noFeeID               = 0
     noFeeReceiptNumber    = 0
     noFeeLogDate          = ""
@@ -72,7 +72,7 @@ define buffer bufCharge        for Charge.
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("HH Number,'No Fee' ChargeHistory.ID,ChargeHistory.LogDate,ChargeHistory.ReceiptNumber,ChargeHistory.Username,TransactionDetail.ID,TransactionDetail.Description,Charge.ID,Charge.Description,Charge.FeeType,Charge.TransactionType,Charge.FeeGroupCode,Charge.MinimumPaymentOption,Charge.DueOption,Charge.Amount,ChargeHistory.ID,ChargeHistory.RecordStatus,Note,").
+run put-stream ("Account Number,'No Fee' ChargeHistory.ID,ChargeHistory.LogDate,ChargeHistory.ReceiptNumber,ChargeHistory.Username,TransactionDetail.ID,TransactionDetail.Description,Charge.ID,Charge.Description,Charge.FeeType,Charge.TransactionType,Charge.FeeGroupCode,Charge.MinimumPaymentOption,Charge.DueOption,Charge.Amount,ChargeHistory.ID,ChargeHistory.RecordStatus,Note,").
 
 // RECEIPT PAYMENT LOOP
 receiptpayment-loop:
@@ -83,7 +83,7 @@ for each PaymentTransaction no-lock where PaymentTransaction.ParentTable = "Char
     if not available ChargeHistory then find first bufChargeHistory no-lock where bufChargeHistory.RecordStatus = "No Fee" no-error no-wait.
     if available bufChargeHistory then run findUnchargedFees(bufChargeHistory.ID). 
     /* NEED TO GRAB ALL THE VARIOUS VARIABLES FOR THE LOG FILE BEFORE RUNNING THE PUT STREAM - ANOTHER PROCEDURE? */   
-    if not available bufChargeHistory run put-stream(/*ENTER LOG FIELDS*/). // "HH Number,'No Fee' ChargeHistory.ID,ChargeHistory.LogDate,ChargeHistory.ReceiptNumber,ChargeHistory.Username,TransactionDetail.ID,TransactionDetail.Description,Charge.ID,Charge.Description,Charge.FeeType,Charge.TransactionType,Charge.FeeGroupCode,Charge.MinimumPaymentOption,Charge.DueOption,Charge.Amount,ChargeHistory.ID,ChargeHistory.RecordStatus,Note,"
+    if not available bufChargeHistory run put-stream(/*ENTER LOG FIELDS*/). // "Account Number,'No Fee' ChargeHistory.ID,ChargeHistory.LogDate,ChargeHistory.ReceiptNumber,ChargeHistory.Username,TransactionDetail.ID,TransactionDetail.Description,Charge.ID,Charge.Description,Charge.FeeType,Charge.TransactionType,Charge.FeeGroupCode,Charge.MinimumPaymentOption,Charge.DueOption,Charge.Amount,ChargeHistory.ID,ChargeHistory.RecordStatus,Note,"
 end.
 
 // FEE HISTORY LOOP
@@ -124,7 +124,7 @@ procedure findUnchargedFees:
         // FIND THE TRANSACTIONDETAIL RECORD FOR THE FEEHISTORY RECORD
         for first TransactionDetail no-lock where TransactionDetail.ID = ChargeHistory.ParentRecord:
             assign
-                hhNum = if TransactionDetail.EntityNumber = ? then 0 else TransactionDetail.EntityNumber.
+                accountNum = if TransactionDetail.EntityNumber = ? then 0 else TransactionDetail.EntityNumber.
         
             // IF THE FEE HISTORY RECORD IS LINKED TO A PASS VISIT RECORD, MOVE TO THE NEXT FEE HISTORY RECORD
             if TransactionDetail.Module = "PMV" then return.
@@ -160,7 +160,7 @@ procedure findUnchargedFees:
                     assign 
                         hasFeeHistory      = true
                         numRecsWithHistory = numRecsWithHistory + 1.
-                    run put-stream (string(hhNum) + "," + string(noFeeID) + "," + noFeeLogDate + "," + string(noFeeReceiptNumber) + ",~"" + noFeeUsername + "~"," + string(TransactionDetail.ID) + ",~"" + getString(TransactionDetail.Description) + "~"," + string(Charge.ID) + ",~"" + getString(Charge.Description) + "~"," + getString(Charge.FeeType) + ",~"" + getString(Charge.TransactionType) + "~",~"" + chargeFeeFeeGroupCode + "~"," + getString(Charge.MinimumPaymentOption) + "," + chargeFeeDueOption + "," + string(Charge.Amount) + "," + string(bufChargeHistory.ID) + "," + bufChargeHistory.RecordStatus + "," + "Non Standard Fee History Record Status,").
+                    run put-stream (string(accountNum) + "," + string(noFeeID) + "," + noFeeLogDate + "," + string(noFeeReceiptNumber) + ",~"" + noFeeUsername + "~"," + string(TransactionDetail.ID) + ",~"" + getString(TransactionDetail.Description) + "~"," + string(Charge.ID) + ",~"" + getString(Charge.Description) + "~"," + getString(Charge.FeeType) + ",~"" + getString(Charge.TransactionType) + "~",~"" + chargeFeeFeeGroupCode + "~"," + getString(Charge.MinimumPaymentOption) + "," + chargeFeeDueOption + "," + string(Charge.Amount) + "," + string(bufChargeHistory.ID) + "," + bufChargeHistory.RecordStatus + "," + "Non Standard Fee History Record Status,").
                 end.
             
                 // IF FEE HISTORY HAS BEEN FOUND  AND LOGGED, MOVED TO NEXT FEE
@@ -169,7 +169,7 @@ procedure findUnchargedFees:
                 // IF NO CHARGEHISTORY RECORDS ARE FOUND, AND NO DUPLICATE FEE RECORDS ARE FOUND, LOG THE FEE RECORD AS AN UNCHARGED FEE
                 assign 
                     numRecsWithoutHistory = numRecsWithoutHistory + 1.
-                run put-stream (string(hhNum) + "," + string(noFeeID) + "," + noFeeLogDate + "," + string(noFeeReceiptNumber) + ",~"" + noFeeUsername + "~"," + string(TransactionDetail.ID) + ",~"" + getString(TransactionDetail.Description) + "~"," + string(Charge.ID) + ",~"" + getString(Charge.Description) + "~"," + getString(Charge.FeeType) + ",~"" + getString(Charge.TransactionType) + "~",~"" + chargeFeeFeeGroupCode + "~"," + getString(Charge.MinimumPaymentOption) + "," + chargeFeeDueOption + "," + string(Charge.Amount) + "," + "0" + "," + "No ChargeHistory Record" + "," + "Charge Charge Found with no ChargeHistory,").
+                run put-stream (string(accountNum) + "," + string(noFeeID) + "," + noFeeLogDate + "," + string(noFeeReceiptNumber) + ",~"" + noFeeUsername + "~"," + string(TransactionDetail.ID) + ",~"" + getString(TransactionDetail.Description) + "~"," + string(Charge.ID) + ",~"" + getString(Charge.Description) + "~"," + getString(Charge.FeeType) + ",~"" + getString(Charge.TransactionType) + "~",~"" + chargeFeeFeeGroupCode + "~"," + getString(Charge.MinimumPaymentOption) + "," + chargeFeeDueOption + "," + string(Charge.Amount) + "," + "0" + "," + "No ChargeHistory Record" + "," + "Charge Charge Found with no ChargeHistory,").
             end.
         end.
     end.

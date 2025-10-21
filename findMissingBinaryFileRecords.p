@@ -35,7 +35,7 @@ assign
 
 // EVERYTHING ELSE
 define variable numRecs    as integer   no-undo.
-define variable hhNum      as integer   no-undo.
+define variable accountNum      as integer   no-undo.
 define variable recordName as character no-undo.
 define variable noFileNum  as integer   no-undo.
 assign
@@ -47,7 +47,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("Household Number,Record Name,File ID,File Link Date,File Description,File FileName,").
+run put-stream ("Account Number,Record Name,File ID,File Link Date,File Description,File FileName,").
 
 // SADOCUMENT LOOP
 document-loop:
@@ -61,7 +61,7 @@ for each File no-lock:
                     find first Account no-lock where Account.ID = File.ParentRecord no-error no-wait.
                     if not available Account then next document-loop. 
                     assign
-                        hhNum      = Account.EntityNumber
+                        accountNum      = Account.EntityNumber
                         recordName = trim((if Account.FirstName = "" then "" else Account.FirstName + " ") + Account.LastName).
                     if recordName = "" then recordName = Account.OrganizationName.
                 end. 
@@ -74,20 +74,20 @@ for each File no-lock:
                     find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
                     if not available Account then next document-loop.
                     assign 
-                        hhNum      = Account.EntityNumber
+                        accountNum      = Account.EntityNumber
                         recordName = trim((if Member.Firstname = "" then "" else Member.FirstName + " ") + Member.LastName).
                     if recordName = "" then recordName = trim((if Account.FirstName = "" then "" else Account.FirstName + " ") + Account.LastName).
                     if recordName = "" then recordName = Account.OrganizationName.
                 end.
             otherwise 
             assign 
-                hhNum      = 0
+                accountNum      = 0
                 recordName = "Not HH/FM Document; File.ParentTable = " + File.ParentTable. 
         end.
             
         if File.Filename = "" then noFileNum = noFileNum + 1. 
         else numRecs = numRecs + 1. 
-        run put-stream("~"" + string(hhNum) + "~",~"" + recordName + "~",~"" + string(File.ID) + "~",~"" + string(File.LinkDate) + "~",~"" + File.Description + "~",~"" + File.FileName + "~",").
+        run put-stream("~"" + string(accountNum) + "~",~"" + recordName + "~",~"" + string(File.ID) + "~",~"" + string(File.LinkDate) + "~",~"" + File.Description + "~",~"" + File.FileName + "~",").
     end.
 end.
   

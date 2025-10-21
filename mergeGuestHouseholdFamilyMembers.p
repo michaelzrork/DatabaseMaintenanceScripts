@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------
     File        : mergeGuestHouseholdFamilyMembers.p
-    Purpose     : Merge duplicate FM within the same HH
+    Purpose     : Merge duplicate Member within the same HH
 
     Syntax      : 
 
@@ -29,21 +29,21 @@ define variable dupeDateOfBirth   as date      no-undo.
 define variable origDateOfBirth   as date      no-undo.
 define variable dupeGender        as character no-undo. 
 define variable origGender        as character no-undo.
-define variable mergeHHnum        as integer   no-undo. 
+define variable mergeAccountNum        as integer   no-undo. 
 define variable numRecs           as integer   no-undo.
-define variable dupeFMID          as int64     no-undo.
+define variable dupeMemberID          as int64     no-undo.
 define variable dupeOrderNum      as integer   no-undo.
 define variable origOrderNum      as integer   no-undo.
-define variable origFMID          as int64     no-undo.
-define variable hhID              as int64     no-undo.
+define variable origMemberID          as int64     no-undo.
+define variable accountID              as int64     no-undo.
 define variable ix                as integer   no-undo.
 
 define variable SubAction         as character no-undo.
 define variable MergeOption       as character no-undo init "transfer". 
-define variable FromHHNumber      as integer   no-undo.
-define variable FromHHID          as int64     no-undo.
-define variable ToHHNumber        as integer   no-undo.
-define variable ToHHID            as int64     no-undo.  
+define variable FromAccountNumber      as integer   no-undo.
+define variable FromAccountID          as int64     no-undo.
+define variable ToAccountNumber        as integer   no-undo.
+define variable ToAccountID            as int64     no-undo.  
 define variable ChangeStaffInfo   as logical   no-undo. 
 define variable DisplayMerge      as logical   no-undo.
 define variable DateFormat        as character no-undo.
@@ -74,16 +74,16 @@ assign
 *************************************************************************/
 
 // ASSIGN NEW VALUES
-mergeHHnum      = 999999999.
+mergeAccountNum      = 999999999.
 
-// FIND HOUSEHOLD ID
-for first Account no-lock where Account.EntityNumber = mergeHHnum:
+// FIND ACCOUNT ID
+for first Account no-lock where Account.EntityNumber = mergeAccountNum:
     assign 
-        hhID = Account.ID.
-    for first Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.Primary = false and Relationship.RecordType = "Household":
+        accountID = Account.ID.
+    for first Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.Primary = false and Relationship.RecordType = "Account":
         assign
-            dupeFMID = Relationship.ChildTableID.
-        find first Member no-lock where Member.ID = dupeFMID no-error no-wait.
+            dupeMemberID = Relationship.ChildTableID.
+        find first Member no-lock where Member.ID = dupeMemberID no-error no-wait.
         if not available Member then 
         do:
             run ActivityLog("Dupe Member Record Not Available").
@@ -95,18 +95,18 @@ for first Account no-lock where Account.EntityNumber = mergeHHnum:
             dupeDateOfBirth = Member.Birthday
             dupeGender      = Member.Gender.
     end.
-    for first Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.Primary = true and Relationship.RecordType = "Household":
+    for first Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.Primary = true and Relationship.RecordType = "Account":
         assign
-            origFMID     = Relationship.ChildTableID
+            origMemberID     = Relationship.ChildTableID
             origOrderNum = Relationship.Order.    
-        find first Member no-lock where Member.ID = origFMID no-error no-wait.
+        find first Member no-lock where Member.ID = origMemberID no-error no-wait.
         if not available Member then 
         do:
             run ActivityLog("Original Member Record Not Available").
             return.
         end.
         if available Member then assign
-                origFMID        = Member.ID
+                origMemberID        = Member.ID
                 origFirstName   = Member.FirstName
                 origLastName    = Member.LastName
                 origDateOfBirth = Member.Birthday
@@ -114,7 +114,7 @@ for first Account no-lock where Account.EntityNumber = mergeHHnum:
     end.
 end.
 
-for each Relationship no-lock where Relationship.ParentTableID = hhID and Relationship.RecordType = "Household" by Relationship.Order:
+for each Relationship no-lock where Relationship.ParentTableID = accountID and Relationship.RecordType = "Account" by Relationship.Order:
     assign 
         ix = ix + 1.
     if ix ne SaLink.Order then
@@ -122,21 +122,21 @@ for each Relationship no-lock where Relationship.ParentTableID = hhID and Relati
 end.
 
 // FIND DUPE PERSON ORDER NUMBER
-for first Relationship no-lock where Relationship.ChildTableID = dupeFMID and Relationship.ParentTableID = hhID and Relationship.RecordType = "Household" and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
+for first Relationship no-lock where Relationship.ChildTableID = dupeMemberID and Relationship.ParentTableID = accountID and Relationship.RecordType = "Account" and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
     dupeOrderNum = Relationship.Order.
 end.
 
-if origFMID = dupeFMID then 
+if origMemberID = dupeMemberID then 
 do:
-    run ActivityLog("Dupe and Original FM have same SAperson.ID").
+    run ActivityLog("Dupe and Original Member have same SAperson.ID").
     return.
 end. 
 
-run mergeFM.
+run mergeMember.
 // CHECK FOR TERTIARY MEMBERS
-for each Relationship no-lock where Relationship.ChildTableID <> origFMID and Relationship.ParentTableID = hhID and Relationship.RecordType = "Household" and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member" by Relationship.Order:
+for each Relationship no-lock where Relationship.ChildTableID <> origMemberID and Relationship.ParentTableID = accountID and Relationship.RecordType = "Account" and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member" by Relationship.Order:
     run checkForAdditionalFMs(Relationship.ID).
-    if dupeOrderNum > 0 then run mergeFM.
+    if dupeOrderNum > 0 then run mergeMember.
 end.
 
 run ActivityLog("Merged duplicate family members within the same HH").
@@ -173,7 +173,7 @@ procedure checkForAdditionalFMs:
     define buffer bufMember for Member.
     assign
         dupeOrderNum    = 0
-        dupeFMID        = 0
+        dupeMemberID        = 0
         dupeFirstName   = ""
         dupeLastName    = ""
         dupeDateOfBirth = ?
@@ -183,7 +183,7 @@ procedure checkForAdditionalFMs:
     for first bufMember no-lock where bufMember.ID = bufRelationship.ChildTableID and bufMember.FirstName = origFirstName and bufMember.LastName = origLastName and bufMember.Birthday = origDateOfBirth:
         assign
             dupeOrderNum    = bufRelationship.Order
-            dupeFMID        = bufMember.ID
+            dupeMemberID        = bufMember.ID
             dupeFirstName   = bufMember.FirstName
             dupeLastName    = bufMember.LastName
             dupeDateOfBirth = bufMember.Birthday
@@ -191,13 +191,13 @@ procedure checkForAdditionalFMs:
     end. 
 end procedure.
 
-// SEND FAMILY MEMBERS TO HH TRANSFER MERGE PROGRAM
-procedure mergeFM:
+// SEND FAMILY MEMBERS TO Account TRANSFER MERGE PROGRAM
+procedure mergeMember:
     
     numRecs = numRecs + 1. 
     
-    setData("HouseholdMerge_FromHousehold",string(mergeHHnum)). 
-    setData("HouseholdMerge_ToHousehold",string(mergeHHnum)).  
+    setData("HouseholdMerge_FromHousehold",string(mergeAccountNum)). 
+    setData("HouseholdMerge_ToHousehold",string(mergeAccountNum)).  
     setdata("SubAction","Start").
     run HouseholdMerge.
 
@@ -215,7 +215,7 @@ procedure mergeFM:
     setData("lastname",string(origLastName)).
     setData("birthday",string(origDateOfBirth)).
     setData("gender",string(origGender)).  
-    setData("mergeoptionfamily",string(substitute("Merge with &1 (#&2) in the To Household",string(origFirstName + " " + origLastName),string(origOrderNum)))).
+    setData("mergeoptionfamily",string(substitute("Merge with &1 (#&2) in the To Account",string(origFirstName + " " + origLastName),string(origOrderNum)))).
     setData("number_previous",string(dupeOrderNum)).
     setData("firstname_previoius",string(dupeFirstName)).
     setData("lastname_previous",string(dupeLastName)).
@@ -256,7 +256,7 @@ procedure HouseholdMerge:
 
     /************************************************************************/
     /*  HouseholdMerge.p ------ RECTRAC SYSTEM                              */
-    /*                          HOUSEHOLD MERGE (SINGLE HH) - BL            */
+    /*                          ACCOUNT MERGE (SINGLE HH) - BL            */
     /*          AUTHOR -------- ANDREW BOSE                                 */
     /*                          VERMONT SYSTEMS, INC.                       */
     /************************************************************************/
@@ -268,15 +268,15 @@ procedure HouseholdMerge:
         SessionID       = SessionID()
         SubsessionID    = SubsessionID() 
         SubAction       = GetData({&SubAction})    
-        FromHHNumber    = mergeHHnum
-        ToHHNumber      = mergeHHnum
+        FromAccountNumber    = mergeAccountNum
+        ToAccountNumber      = mergeAccountNum
         ChangeStaffInfo = logical(GetData("HouseholdMerge_ChangeStaffInfo"))  
         DateFormat      = GetDataTrue({&DateFormat})
         TimeFormat      = GetDataTrue({&TimeFormat})
         ContinueError   = ""
         ModuleList      = {&FullModuleList}.
  
-/*** GO THRU DAILY PROCESSING PROFILES AND GET INTERNAL & MODEL HOUSEHOLDS ***/
+/*** GO THRU DAILY PROCESSING PROFILES AND GET INTERNAL & MODEL ACCOUNTS ***/
 PROFILE-LOOP:
 for each EntityProfile no-lock where 
     EntityProfile.RecordType = "Daily Processing":
@@ -286,7 +286,7 @@ for each EntityProfile no-lock where
     if InternalHH > "" then
         InternalHHList = UniqueList(InternalHH,InternalHHList,",").
   
-    /*** GET MODEL HOUSEHOLD LIST ***/
+    /*** GET MODEL ACCOUNT LIST ***/
     do ix = 1 to num-entries(ModuleList):
     
         ModelHHModuleList = ProfileCharTrueDb(EntityProfile.ID, "ModelHousehold" + entry(ix,ModuleList)).
@@ -300,7 +300,7 @@ end. /* END PROFILE-LOOP */
 
   
 
-for first Account no-lock where Account.EntityNumber = ToHHNumber:
+for first Account no-lock where Account.EntityNumber = ToAccountNumber:
     mergeoption = "merge".
 end.
 
@@ -330,7 +330,7 @@ procedure adjustRelationships:
               
         for each Relationship no-lock 
             where Relationship.ParentTableID = Account.ID and
-            Relationship.RecordType = "Household" by Relationship.Order:
+            Relationship.RecordType = "Account" by Relationship.Order:
             assign 
                 ix = ix + 1.
             if ix ne SaLink.Order then
@@ -353,7 +353,7 @@ end procedure.
 procedure getNewLinkForFamily:
     /*------------------------------------------------------------------------------
      Purpose: It will retrive the newLink(SaLink.Order) 
-     Notes: The order will be the one after the person is moved/merge with the other household
+     Notes: The order will be the one after the person is moved/merge with the other account
     ------------------------------------------------------------------------------*/
     define output parameter newLink as integer no-undo.
   
@@ -372,7 +372,7 @@ end procedure.
 procedure getNewLinkForTeam:
     /*------------------------------------------------------------------------------
      Purpose: It will retrive the newLink(SaLink.Order) 
-     Notes: The order will be the one after the team is moved/merge with the other household
+     Notes: The order will be the one after the team is moved/merge with the other account
     ------------------------------------------------------------------------------*/
     define output parameter  newLink as integer no-undo.
   
@@ -399,7 +399,7 @@ procedure createPreMerge:
     define input parameter nameDescription as char no-undo.
 
     for each TransactionDetail no-lock where 
-        TransactionDetail.EntityNumber = mergeHHnum and
+        TransactionDetail.EntityNumber = mergeAccountNum and
         TransactionDetail.PatronLinkID = originalId and
         TransactionDetail.CartStatus = "Complete" and 
         TransactionDetail.Complete:
@@ -425,7 +425,7 @@ procedure createPreMerge:
                             if TransactionDetail.Archived then "ARCHIVED: " else "") + TransactionDetail.Description +
                             "  Status: " + TRANSACTIONDETAIL.RecordStatus + 
                             " (" + nameDescription + 
-                            ") (From House: " + string(FromHHNumber) + " To House: " + string(ToHHnumber) + ")" 
+                            ") (From House: " + string(FromAccountNumber) + " To House: " + string(ToAccountNumber) + ")" 
             ttPreMerge.conflict  = if not good-hist then yes else no.
     end.
 
@@ -434,12 +434,12 @@ end procedure.
 procedure extractNumber:
     /*------------------------------------------------------------------------------
      Purpose: It will extract the number from the option label
-     Notes: The option label is of this type "Merge with <name> (#<number>) in the To Household"
+     Notes: The option label is of this type "Merge with <name> (#<number>) in the To Account"
     ------------------------------------------------------------------------------*/
     define input parameter stringValue as char no-undo.
     define output parameter number as int no-undo.
 
-    stringValue = replace(stringValue,") in the To Household",'').
+    stringValue = replace(stringValue,") in the To Account",'').
     number =  int(entry(num-entries(stringValue,"#"),stringValue,"#")) no-error.
 
 
@@ -448,7 +448,7 @@ end procedure.
 procedure getMergeOptionForTeam:
     /*------------------------------------------------------------------------------
      Purpose: Set up default values for merge option
-     Notes: If a team with the same name is found in the To Household, 
+     Notes: If a team with the same name is found in the To Account, 
             then select merge with it by default
             Else select "Do not Transfer/Merge"
     ------------------------------------------------------------------------------*/    
@@ -456,35 +456,35 @@ procedure getMergeOptionForTeam:
     define input parameter teamname as char no-undo.
     define output parameter mergeValue as char init "Do Not Transfer/Merge".
   
-    if ToHHNumber eq FromHHNumber then 
+    if ToAccountNumber eq FromAccountNumber then 
     do:
         mergeValue = "Do Not Transfer/Merge". 
         return.      
     end.
     for first ttTeamTo where ttTeamTo.teamname eq teamname:
-        mergeValue = substitute("Merge with &1 (#&2) in the To Household",string(teamname),string(ttTeamTo.Number)).
+        mergeValue = substitute("Merge with &1 (#&2) in the To Account",string(teamname),string(ttTeamTo.Number)).
     end.
 end procedure.
 
 procedure getMergeOptionForFamily:
     /*------------------------------------------------------------------------------
      Purpose: Set up default values for merge option
-     Notes: If a person with the same name and birthday is found in the To Household, 
+     Notes: If a person with the same name and birthday is found in the To Account, 
             then select merge with it by default
             else if is the primary one select "Do not Transfer/Merge"
-            else select "Transfer Member into the To Household"
+            else select "Transfer Member into the To Account"
     ------------------------------------------------------------------------------*/       
     
     define output parameter mergeValue as char init "Do Not Transfer/Merge".
   
-    if ToHHNumber eq FromHHNumber then
+    if ToAccountNumber eq FromAccountNumber then
         return.      
   
     for first ttFamilyTo where 
         ttFamilyTo.firstname eq Member.FirstName and
         ttFamilyTo.lastname eq Member.LastName and
         ttFamilyTo.birthday eq string(Member.Birthday,"99/99/9999"):
-        mergeValue = substitute("Merge with &1 (#&2) in the To Household",string(ttFamilyTo.FirstName + " " + ttFamilyTo.LastName),string(ttFamilyTo.Number)).
+        mergeValue = substitute("Merge with &1 (#&2) in the To Account",string(ttFamilyTo.FirstName + " " + ttFamilyTo.LastName),string(ttFamilyTo.Number)).
         return.
     end.
   
@@ -508,7 +508,7 @@ procedure makeNextAvailablePersonPrimary:
         for first bufSaLink no-lock where 
             bufSaLink.ChildTableID = ttFamilyFromPreMerge.personid and
             bufSaLink.ChildTable = "Member" and
-            bufSaLink.ParentTableID = FromHHID and
+            bufSaLink.ParentTableID = FromAccountID and
             bufSaLink.ParentTable = "Account" and           
             bufSaLink.Order = ttFamilyFromPreMerge.number:
             run SetRelationship(bufSaLink.id, yes, bufSaLink.Order, primaryRelationship).               
@@ -518,7 +518,7 @@ procedure makeNextAvailablePersonPrimary:
     if not available ttFamilyFromPreMerge then return.
 
     do for BufAccount,BufEmailAddress,BufPhone transaction:
-        find BufAccount exclusive-lock where BufAccount.id = FromHHID no-error no-wait.
+        find BufAccount exclusive-lock where BufAccount.id = FromAccountID no-error no-wait.
         find BufMember no-lock where BufMember.id = ttFamilyFromPreMerge.personid no-error no-wait.
         if not available BufAccount or not available BufMember then return.
         assign
@@ -530,7 +530,7 @@ procedure makeNextAvailablePersonPrimary:
             BufAccount.PrimaryPhoneExtension = BufMember.PrimaryPhoneExtension.
         if BufMember.primaryemailaddress gt "" then 
         do: 
-            for first EmailContact no-lock where EmailContact.ParentRecord = FromHHID and
+            for first EmailContact no-lock where EmailContact.ParentRecord = FromAccountID and
                 EmailContact.PrimaryEmailAddress = yes:
                 run updateSAPrimaryEmailAddress(EmailContact.id,BufAccount.primaryemailaddress, BufMember.id).
             end.
@@ -539,20 +539,20 @@ procedure makeNextAvailablePersonPrimary:
                 create BufEmailAddress.
                 assign
                     BufEmailAddress.emailaddress        = BufMember.primaryemailaddress
-                    bufsaemailaddress.ParentRecord            = FromHHID
+                    bufsaemailaddress.ParentRecord            = FromAccountID
                     bufsaemailaddress.ParentTable         = "Account"
                     bufsaemailaddress.MemberLinkID      = BufMember.id
                     bufsaemailaddress.PrimaryEmailAddress = yes.
             end. 
         end.
         else 
-            for first EmailContact no-lock where EmailContact.ParentRecord = FromHHID and
+            for first EmailContact no-lock where EmailContact.ParentRecord = FromAccountID and
                 EmailContact.PrimaryEmailAddress = yes:
                 run purgeEmailContact(EmailContact.id).
             end.
         if BufMember.PrimaryPhoneNumber gt "" then 
         do:
-            for first SaPhone no-lock where SaPhone.ParentRecord = FromHHID and
+            for first SaPhone no-lock where SaPhone.ParentRecord = FromAccountID and
                 PhoneNumber.PrimaryPhoneNumber = yes:
                 run updatesaphoneprimary(PhoneNumber.id, BufMember.PrimaryPhoneNumber, BufMember.id,BufSaPerson.primaryphonetype,BufMember.primaryphoneextension).
             end.
@@ -563,14 +563,14 @@ procedure makeNextAvailablePersonPrimary:
                     BufPhone.phonenumber        = BufMember.primaryphonenumber
                     BufPhone.phonetype          = BufMember.primaryphonetype
                     BufPhone.extension          = BufMember.primaryphoneextension
-                    bufPhoneNumber.ParentRecord           = FromHHID
+                    bufPhoneNumber.ParentRecord           = FromAccountID
                     bufPhoneNumber.ParentTable        = "Account"
                     bufPhoneNumber.MemberLinkID     = BufMember.id
                     bufPhoneNumber.Primaryphonenumber = yes.
             end. 
         end.
         else 
-            for first SaPhone no-lock where SaPhone.ParentRecord = FromHHID and
+            for first SaPhone no-lock where SaPhone.ParentRecord = FromAccountID and
                 PhoneNumber.PrimaryPhoneNumber = yes:
                 run purgesaphone(SaPhone.id).
             end.      
@@ -590,15 +590,15 @@ procedure Start:
             empty temp-table ttFamilyTo.   
 
             SetData("MergeOption", MergeOption).  
-            SetData("HouseholdMerge_FromHHNumber", string(FromHHNumber)).
-            SetData("HouseholdMerge_ToHHNumber", string(ToHHNumber)).
+            SetData("HouseholdMerge_FromHHNumber", string(FromAccountNumber)).
+            SetData("HouseholdMerge_ToHHNumber", string(ToAccountNumber)).
             SetData("HouseholdMerge_ChangeStaffInfo", string(ChangeStaffInfo)).
       
-            run adjustSaLinks(FromHHNumber).
-            run adjustSaLinks(ToHHNumber).
-            run CreateToRecords (ToHHNumber).  
-            run CreateFromRecords (FromHHNumber).    
-            if FromHHNumber eq ToHHNumber then
+            run adjustSaLinks(FromAccountNumber).
+            run adjustSaLinks(ToAccountNumber).
+            run CreateToRecords (ToAccountNumber).  
+            run CreateFromRecords (FromAccountNumber).    
+            if FromAccountNumber eq ToAccountNumber then
                 SetData("SameHousehold","yes").
             else
                 RemoveData("SameHousehold").    
@@ -608,7 +608,7 @@ procedure Start:
  
             if not can-find(first ttFamilyFrom no-lock) then 
             do:
-                SetData({&UIErrorMessage},"You need to have at least one member in the 'From' household").
+                SetData({&UIErrorMessage},"You need to have at least one member in the 'From' account").
                 return.
             end.   
             run StoreInContext.
@@ -621,7 +621,7 @@ procedure Start:
         if GetDataTrue("ContinueTransfer") ne "yes" then 
         do:
             run Business/Dialog.p ("FileMaintenanceContinue", "Maintenance",
-                substitute("Transfer Household #&1 to Household #&2. Are you sure you want to continue?",FromHHNumber,ToHHNumber),
+                substitute("Transfer Account #&1 to Account #&2. Are you sure you want to continue?",FromAccountNumber,ToAccountNumber),
                 "ButtonContinue,ButtonCancel").
             CreateParam2(3, "FileMaintenanceContinue_ButtonContinue", "Click.Data", "Routine=Processing&Action=HouseholdMerge&SubAction=Start&ContinueTransfer=yes").
             CreateParam2(3, "FileMaintenanceContinue_ButtonContinue", "Click.Close", "Continue").
@@ -669,7 +669,7 @@ procedure Continue:
     for first ProgramSchedule no-lock where 
         ProgramSchedule.RecordStatus  = "Running"
         and ProgramSchedule.ProgramToRun = "Business/HouseholdBalanceAutoPay.p": 
-        ContinueError = "Household Balance Auto Pay is currently running. Try again later.".
+        ContinueError = "Account Balance Auto Pay is currently running. Try again later.".
         ProcessRunning = yes.
     end.
     if ProcessRunning then return.
@@ -677,7 +677,7 @@ procedure Continue:
     ContinueError = "".
     run GetFromContext. 
   
-    if mergeOption = "merge" and FromHHNumber ne ToHHNumber then 
+    if mergeOption = "merge" and FromAccountNumber ne ToAccountNumber then 
     do:
         for each ttFamilyFrom where ttFamilyFrom.mergeoptionfamily ne "Do not Transfer/Merge":    
             find first ttFamilyTo where ttFamilyTo.personId = ttFamilyFrom.personId no-error.
@@ -688,7 +688,7 @@ procedure Continue:
                     run extractNumber(ttFamilyFrom.mergeoptionfamily, output number).
                 if number = 0 or number ne ttFamilyTo.number then     
                     ContinueError = ttFamilyFrom.firstname + " " + ttFamilyFrom.lastname + 
-                        " is in both the 'from' and the 'to' household but is being merged into a different person. This is not allowed.".
+                        " is in both the 'from' and the 'to' account but is being merged into a different person. This is not allowed.".
             end.    
         end. 
     end.
@@ -699,7 +699,7 @@ procedure Continue:
         return.
     end.
   
-    if mergeOption = "merge" and FromHHNumber eq ToHHNumber then 
+    if mergeOption = "merge" and FromAccountNumber eq ToAccountNumber then 
     do:
         for each ttFamilyFrom where ttFamilyFrom.mergeoptionfamily ne "Do not Transfer/Merge": 
             run extractNumber(ttFamilyFrom.mergeoptionfamily, output number).
@@ -752,7 +752,7 @@ procedure Continue2:
     run GetFromContext2.
   
     if mergeoption ne "transfer" then
-        if can-find(first ttFamilyFromPreMerge) or FromHHNumber eq ToHHNumber then
+        if can-find(first ttFamilyFromPreMerge) or FromAccountNumber eq ToAccountNumber then
             mergeoption = "partialmerge".
         else
             mergeoption = "fullmerge".
@@ -762,7 +762,7 @@ procedure Continue2:
     /* that we only merge if ALL the people tied to the contract are being merged.  If not then  */
     /* we need to stop the process now. */
   
-    for each Agreement no-lock where Agreement.EntityNumber = FromHHNumber:
+    for each Agreement no-lock where Agreement.EntityNumber = FromAccountNumber:
         if MergeOption = "partialmerge" then 
         do:
             for each TransactionDetail no-lock where TransactionDetail.ContractID = Agreement.ID:
@@ -771,7 +771,7 @@ procedure Continue2:
                 if available ttFamilyFrom then 
                 do:
                     SetData("Contracterror","Contracterror").
-                    SetData({&UIErrorMessage}, Member.FirstName + " " + Member.LastName + " is linked to a contract for the household they currently are linked to and cannot be moved." ).
+                    SetData({&UIErrorMessage}, Member.FirstName + " " + Member.LastName + " is linked to a contract for the account they currently are linked to and cannot be moved." ).
                     return.
                 end.
             end.
@@ -932,17 +932,17 @@ end procedure.
 
 procedure CreateFromRecords:
 
-    define input parameter HHNumber as integer no-undo.
+    define input parameter AccountNumber as integer no-undo.
     define variable ix         as integer   no-undo.
     define variable iy         as integer   no-undo.
     define variable mergeValue as character no-undo.
   
     for first Account no-lock 
-        where Account.EntityNumber = HHNumber:
+        where Account.EntityNumber = AccountNumber:
     
         for each Relationship no-lock 
             where Relationship.ParentTableID = Account.ID by Relationship.Order: 
-            if Relationship.RecordType = "Household" then 
+            if Relationship.RecordType = "Account" then 
                 for each Member no-lock where Member.ID = Relationship.ChildTableID:
                     run getMergeOptionForFamily(output mergeValue).    
                     create ttFamilyFrom. 
@@ -978,13 +978,13 @@ end procedure.
 
 procedure CreateToRecords:
 
-    define input parameter HHNumber as integer no-undo.
+    define input parameter AccountNumber as integer no-undo.
 
     for first Account no-lock 
-        where Account.EntityNumber = HHNumber: 
+        where Account.EntityNumber = AccountNumber: 
     
         for each Relationship no-lock where Relationship.ParentTableID = Account.ID by salink.order:     
-            if Relationship.RecordType = "Household" then
+            if Relationship.RecordType = "Account" then
                 for each Member no-lock where Member.ID = Relationship.ChildTableID: 
                     create ttFamilyTo. 
                     assign
@@ -1025,9 +1025,9 @@ procedure process4:
         SetData({&UISuccessMessage},
             string(ConflictCount) + " conflicts existed during " + (if MergeOption = "Fullmerge" then "the full merge"
             else if mergeoption = "transfer" then "the transfer" else "the partial merge") + "! " +
-            "You should review the converted household's Activity enrollments for " + 
+            "You should review the converted account's Activity enrollments for " + 
             "duplicate enrollment(s).").
-    else SetData({&UISuccessMessage}, "Household " +
+    else SetData({&UISuccessMessage}, "Account " +
             if MergeOption = "transfer" then "Transfer Complete!"
             else if MergeOption = "partialmerge" then "Partial Merge Complete!"
             else "Full Merge Complete!").
@@ -1054,7 +1054,7 @@ procedure pre-merge:
         create ttTeamToPreMerge.
         buffer-copy ttTeamTo to ttTeamToPreMerge.
     end.
-    if FromhhNumber ne ToHHNumber then 
+    if FromAccountNumber ne ToAccountNumber then 
     do:
         for each ttFamilyFrom where not (ttFamilyFrom.mergeoptionfamily begins "Merge") :
             if ttFamilyFrom.mergeoptionfamily eq "Do Not Transfer/Merge" then 
@@ -1122,7 +1122,7 @@ procedure pre-merge:
         if ttFamilyFrom.mergeoptionfamily begins "Merge" then 
         do:  
             run extractNumber(ttFamilyFrom.mergeoptionfamily,output number).
-            if FromHHNumber eq ToHHNumber then 
+            if FromAccountNumber eq ToAccountNumber then 
             do:
                 if number eq ttFamilyFrom.number then next.
                 else 
@@ -1137,7 +1137,7 @@ procedure pre-merge:
         end. 
         else 
         do:
-            nameDescription = ttFamilyFrom.FirstName + " " + ttFamilyFrom.LastName + " - to be moved into household ".  
+            nameDescription = ttFamilyFrom.FirstName + " " + ttFamilyFrom.LastName + " - to be moved into account ".  
             run createPreMerge(ttFamilyFrom.personId, "", ?, nameDescription).  
         end.    
     end.
@@ -1150,7 +1150,7 @@ procedure pre-merge:
         if ttTeamFrom.mergeoptionteam begins "Merge" then 
         do:    
             run extractNumber(ttTeamFrom.mergeoptionteam,output number).
-            if FromHHNumber eq ToHHNumber then 
+            if FromAccountNumber eq ToAccountNumber then 
             do:
                 if number eq ttTeamFrom.number then next.
                 else 
@@ -1165,7 +1165,7 @@ procedure pre-merge:
         end. 
         else 
         do:
-            nameDescription = ttTeamFrom.teamName + " - to be moved into household ".  
+            nameDescription = ttTeamFrom.teamName + " - to be moved into account ".  
             run createPreMerge(ttTeamFrom.teamid, "", ?, nameDescription).  
         end.    
     end.
@@ -1244,8 +1244,8 @@ procedure ProcessMerge:
         photo-check = if findProfile("Photo") = false then no else yes.
   
   
-    run create-log ("From Household: " + string(FromHHNumber) +
-        "  To Household: " + string(ToHHNumber) + "  Option: " + if MergeOption = "transfer"
+    run create-log ("From Account: " + string(FromAccountNumber) +
+        "  To Account: " + string(ToAccountNumber) + "  Option: " + if MergeOption = "transfer"
         then "Transfer" else if MergeOption = "fullmerge" then "Full Merge"
         else "Partial Merge",
         "",
@@ -1254,18 +1254,18 @@ procedure ProcessMerge:
         "").
 
   
-    find first bufFromAccount no-lock where bufFromAccount.EntityNumber = FromHHNumber no-error.      
-    FromHHID = if available bufFromAccount then bufFromAccount.id else 0.
+    find first bufFromAccount no-lock where bufFromAccount.EntityNumber = FromAccountNumber no-error.      
+    FromAccountID = if available bufFromAccount then bufFromAccount.id else 0.
     find first bufToAccount no-lock where bufToAccount.EntityNumber = TOHHNumber no-error. 
-    ToHHID = if available bufToAccount then bufToAccount.id else 0.
+    ToAccountID = if available bufToAccount then bufToAccount.id else 0.
                                    
     create ChargeHistory.
     assign
-        ChargeHistory.ParentRecord     = ToHHID
+        ChargeHistory.ParentRecord     = ToAccountID
         ChargeHistory.parenttable  = "Account"
         ChargeHistory.LogDate      = today
         ChargeHistory.LogTime      = time
-        ChargeHistory.Notes        = "From Household: " + string(FromHHNumber) + "  To Household: " + string(ToHHNumber) +
+        ChargeHistory.Notes        = "From Account: " + string(FromAccountNumber) + "  To Account: " + string(ToAccountNumber) +
                          (if MergeOption = "transfer" then " (Transfer)" 
                           else if MergeOption = "fullmerge" then " (Full Merge)"
                           else " (Partial Merge)")
@@ -1276,14 +1276,14 @@ procedure ProcessMerge:
     do: 
         create ChargeHistory.
         assign
-            ChargeHistory.ParentRecord     = FromHHID
+            ChargeHistory.ParentRecord     = FromAccountID
             ChargeHistory.parenttable  = "Account"
             ChargeHistory.LogDate      = today
             ChargeHistory.LogTime      = time
-            ChargeHistory.Notes        = "From Household: " + string(FromHHNumber) + "  To Household: " + string(ToHHNumber) + " (Partial Merge)"
+            ChargeHistory.Notes        = "From Account: " + string(FromAccountNumber) + "  To Account: " + string(ToAccountNumber) + " (Partial Merge)"
             ChargeHistory.RecordStatus = "Note"
             ChargeHistory.UserName     = Signon().    
-    end. /* CREATE HISTORY FOR FROM HH ONLY IF PARTIAL MERGE */     
+    end. /* CREATE HISTORY FOR FROM Account ONLY IF PARTIAL MERGE */     
  
     if lookup(MergeOption,"fullmerge,transfer") gt 0 then 
     do:
@@ -1291,27 +1291,27 @@ procedure ProcessMerge:
             emnum = 0.    
         if mergeOption ne "transfer" then 
         do:
-            for each bufContactEmergency no-lock where bufContactEmergency.ParentRecord = ToHHID:
+            for each bufContactEmergency no-lock where bufContactEmergency.ParentRecord = ToAccountID:
                 assign 
                     emnum = if bufContactEmergency.Order gt emnum then bufContactEmergency.Order else emnum.
             end.
             assign 
                 emnum = emnum + 1.
   
-            for each ContactEmergency no-lock where ContactEmergency.ParentRecord = FromHHID by ContactEmergency.Order:
+            for each ContactEmergency no-lock where ContactEmergency.ParentRecord = FromAccountID by ContactEmergency.Order:
                 run UpdateSAEmergencyContact (rowid(ContactEmergency)).
             end.  /*  FOR EACH END  */       
      
-            for each EPayInfo no-lock where EPayInfo.ParentRecord = FromHHID:
+            for each EPayInfo no-lock where EPayInfo.ParentRecord = FromAccountID:
                 run UpdateEPayInfo (rowid(EPayInfo)).        
             end.  /*  FOR EACH END  */      
       
-            for each CardTransactionLog no-lock where CardTransactionLog.ParentRecord  = FromHHID:
+            for each CardTransactionLog no-lock where CardTransactionLog.ParentRecord  = FromAccountID:
                 run UpdateSACreditCardHistory (rowid(CardTransactionLog)).         
             end.  /*  FOR EACH END  */    
     
-            for each BinaryFile no-lock where BinaryFile.Filename begins "\Household Documents\" + string(FromHHID) + "\":
-                NewFileName = replace(BinaryFile.Filename, "\" + string(FromHHID) + "\", "\" + string(ToHHID) + "\").
+            for each BinaryFile no-lock where BinaryFile.Filename begins "\Account Documents\" + string(FromAccountID) + "\":
+                NewFileName = replace(BinaryFile.Filename, "\" + string(FromAccountID) + "\", "\" + string(ToAccountID) + "\").
                 find first BufBlobFile no-lock where BufBlobFile.Filename = 
                     NewFileName no-error.
 
@@ -1328,141 +1328,141 @@ procedure ProcessMerge:
 
             end.  /*  FOR EACH END  */      
     
-            for each File no-lock where File.ParentRecord = FromHHID:
+            for each File no-lock where File.ParentRecord = FromAccountID:
                 run UpdateSADocument (File.id).           
             end.  /*  FOR EACH END  */   
        
-            for each bufLSSchedule no-lock where bufLSSchedule.AwayHouseholdNumber = FromHHNumber:
-                run updateLeagueLSSchedule (bufLSSchedule.id, ToHHNumber, ?, "away", "").
+            for each bufLSSchedule no-lock where bufLSSchedule.AwayHouseholdNumber = FromAccountNumber:
+                run updateLeagueLSSchedule (bufLSSchedule.id, ToAccountNumber, ?, "away", "").
             end.        
      
-            for each bufLSSchedule no-lock where bufLSSchedule.HomeHouseholdNumber = FromHHNumber:
-                run updateLeagueLSSchedule (bufLSSchedule.id, ToHHNumber, ?, "home", "").
+            for each bufLSSchedule no-lock where bufLSSchedule.HomeHouseholdNumber = FromAccountNumber:
+                run updateLeagueLSSchedule (bufLSSchedule.id, ToAccountNumber, ?, "home", "").
             end.
     
         end. /* NOT TRANSFER END */   
      
-        for each AccountBalanceLog no-lock where AccountBalanceLog.EntityNumber = FromHHNumber:
+        for each AccountBalanceLog no-lock where AccountBalanceLog.EntityNumber = FromAccountNumber:
             run UpdateSAControlAccountHistory (rowid(AccountBalanceLog)).       
         end.  /*  FOR EACH END  */            
-        for each MTCuslog no-lock where MTCuslog.CustomerNumber = FromHHNumber:
+        for each MTCuslog no-lock where MTCuslog.CustomerNumber = FromAccountNumber:
             run UpdateMTCuslog (rowid(MTCuslog)).       
         end.  /*  FOR EACH MTCuslog END  */  
-        for each MTInvoice no-lock where MTInvoice.CustomerNumber = FromHHNumber:
+        for each MTInvoice no-lock where MTInvoice.CustomerNumber = FromAccountNumber:
             run UpdateMTInvoice (rowid(MTInvoice)).       
         end.  /*  FOR EACH MTInvoice END  */  
      
         for each PaymentLog no-lock where 
-            PaymentLog.EntityNumber = FromHHNumber and
+            PaymentLog.EntityNumber = FromAccountNumber and
             PaymentLog.RecordType = "Rewards":
             run UpdateSAPaymentHistory (rowid(PaymentLog)).         
         end.  /*  FOR EACH END  */
   
-        for each DPTicket no-lock where DPTicket.EntityNumber = FromHHNumber:
+        for each DPTicket no-lock where DPTicket.EntityNumber = FromAccountNumber:
             run UpdateDPTicket (rowid(DPTicket)).       
         end.  /*  FOR EACH END  */      
 
-        for each VoucherDetail no-lock where VoucherDetail.EntityNumber = FromHHNumber:
+        for each VoucherDetail no-lock where VoucherDetail.EntityNumber = FromAccountNumber:
             run UpdateSAGiftCertificateDetail (rowid(VoucherDetail)).       
         end.  /*  FOR EACH END  */      
   
-        for each GRTournament no-lock where GRTournament.EntityNumber = FromHHNumber:
+        for each GRTournament no-lock where GRTournament.EntityNumber = FromAccountNumber:
             run UpdateGRTournament (rowid(GRTournament)).       
         end.  /*  FOR EACH END  */     
   
-        find first AccountAddress no-lock where AccountAddress.EntityNumber = ToHHNumber no-error.
+        find first AccountAddress no-lock where AccountAddress.EntityNumber = ToAccountNumber no-error.
         if available AccountAddress then 
         do:
-            find first bufAccountAddress no-lock where bufAccountAddress.EntityNumber = FromHHNumber no-error.
+            find first bufAccountAddress no-lock where bufAccountAddress.EntityNumber = FromAccountNumber no-error.
             if available bufAccountAddress then run DeleteSAHouseholdAddress (rowid(bufAccountAddress)).        
-        end.  /* TO HH IS AVAILABLE SO DELETE FROM HH */
+        end.  /* TO Account IS AVAILABLE SO DELETE FROM Account */
         else 
         do:
-            find first bufAccountAddress no-lock where bufAccountAddress.EntityNumber = FromHHNumber no-error.
+            find first bufAccountAddress no-lock where bufAccountAddress.EntityNumber = FromAccountNumber no-error.
             if available bufAccountAddress then run UpdateSAHouseholdAddress (rowid(bufAccountAddress)).  
-        end.  /* TO HH IS NOT AVAILABLE SO ADJUST FROM HH */
+        end.  /* TO Account IS NOT AVAILABLE SO ADJUST FROM Account */
   
-        for each Reversal no-lock where Reversal.EntityNumber = FromHHNumber:
+        for each Reversal no-lock where Reversal.EntityNumber = FromAccountNumber:
             if Reversal.MemberLinkID = 0 then run UpdateSARefund (rowid(Reversal)).   
         end.  /*  FOR EACH END  */
 
-        for each BillingStatement no-lock where BillingStatement.EntityNumber = FromHHNumber:
+        for each BillingStatement no-lock where BillingStatement.EntityNumber = FromAccountNumber:
             run UpdateSAStatementHistory (rowid(BillingStatement)).          
         end.  /*  FOR EACH END  */  
   
-        for each WebAddressChange no-lock where WebAddressChange.EntityNumber = FromHHNumber:
+        for each WebAddressChange no-lock where WebAddressChange.EntityNumber = FromAccountNumber:
             run UpdateWebAddressChange (rowid(WebAddressChange)).          
         end.  /*  FOR EACH END  */       
     
-        /** RENTALS THAT ARE NOT LINKED TO A FAMILY MEMBER DO NOT HAVE FM LINKS IN IBILLS **/
-        /** IBHISTOR AND IBMASTER ARE ADJUSTED IN BOTH HH AND FM LOOPS                    **/
+        /** RENTALS THAT ARE NOT LINKED TO A FAMILY MEMBER DO NOT HAVE Member LINKS IN IBILLS **/
+        /** IBHISTOR AND IBMASTER ARE ADJUSTED IN BOTH Account AND Member LOOPS                    **/
         for each InvoiceLineItem no-lock where 
-            InvoiceLineItem.EntityNumber = FromHHNumber and
+            InvoiceLineItem.EntityNumber = FromAccountNumber and
             InvoiceLineItem.MemberLinkID = 0:
             run UpdateSABillingDetail (rowid(InvoiceLineItem)). 
         end.  /*  FOR EACH END  */
   
-        for each ChargeHistory no-lock where ChargeHistory.PaymentHousehold = FromHHNumber:
+        for each ChargeHistory no-lock where ChargeHistory.PaymentHousehold = FromAccountNumber:
             run UpdateSAFeeHistory (rowid(ChargeHistory)). 
         end.  /*  FOR EACH END  */    
   
-        for each UserSession no-lock where UserSession.EntityNumber = FromHHNumber:
+        for each UserSession no-lock where UserSession.EntityNumber = FromAccountNumber:
             run UpdateSASessionInfo (rowid(UserSession)). 
         end.  /*  FOR EACH END  */      
   
-        for each LedgerEntry no-lock where LedgerEntry.EntityNumber = FromHHNumber:
+        for each LedgerEntry no-lock where LedgerEntry.EntityNumber = FromAccountNumber:
             if MergeOption ne "Transfer" and LedgerEntry.PatronLinkID ne 0 then next.
             run UpdateSAGLDistribution (rowid(LedgerEntry)). 
         end.  /*  FOR EACH END  */   
   
-        for each PaymentTransaction no-lock where PaymentTransaction.PaymentHousehold = FromHHNumber:
+        for each PaymentTransaction no-lock where PaymentTransaction.PaymentHousehold = FromAccountNumber:
             run UpdateSAReceiptPayment (rowid(PaymentTransaction)). 
         end.  /*  FOR EACH END  */   
   
-        for each PaymentReceipt no-lock where PaymentReceipt.EntityNumber = FromHHNumber:  
+        for each PaymentReceipt no-lock where PaymentReceipt.EntityNumber = FromAccountNumber:  
             run UpdateSAReceipt (rowid(PaymentReceipt)). 
         end.  /*  FOR EACH END  */     
   
         for each WebWishList no-lock where 
-            WebWishList.ParentRecord = FromHHID and
+            WebWishList.ParentRecord = FromAccountID and
             WebWishList.MemberLinkID = 0:
             run UpdateWebWishList (rowid(WebWishList)). 
         end.  /*  FOR EACH END  */ 
     
-        for each Agreement no-lock where Agreement.EntityNumber = FromHHNumber:
+        for each Agreement no-lock where Agreement.EntityNumber = FromAccountNumber:
             run UpdateSAContract (rowid(Agreement)).
         end. /* FOR EACH END */
     end.  /*  CONVERT H/H ONLY TABLES IF DOING FULL MERGE OR TRANSFER END  */
     else 
     do: 
         find first bufToAccount no-lock where bufToAccount.EntityNumber = TOHHNumber no-error.  
-        ToHHID = if available bufToAccount then  bufToAccount.id else 0.
+        ToAccountID = if available bufToAccount then  bufToAccount.id else 0.
     end.   
     /****************************************************************************/
     /*  Convert all of the tables that have a family member link                */
     /****************************************************************************/
     for each ttFamilyFrom where ttFamilyFrom.mergeoptionfamily ne "Do Not Transfer/Merge":   
         run getNewLinkForFamily(output newLink).
-        if FromHHNumber eq ToHHNumber and newLink eq ttFamilyFrom.number then next. 
+        if FromAccountNumber eq ToAccountNumber and newLink eq ttFamilyFrom.number then next. 
         run updateDetails(ttFamilyFrom.personId, ttFamilyFrom.mergeoptionfamily, "family", output newId).
  
-        run FMAdjustments (ttFamilyFrom.personid, newId, MergeOption, yes).              
+        run MemberAdjustments (ttFamilyFrom.personid, newId, MergeOption, yes).              
         find first Member no-lock where Member.ID = ttFamilyFrom.personid no-error.  
         for first Relationship no-lock where Relationship.ChildTableID = ttFamilyFrom.personid and
             Relationship.ChildTable = "Member" and
-            Relationship.ParentTableID = FromHHID and
+            Relationship.ParentTableID = FromAccountID and
             Relationship.ParentTable = "Account" and           
             Relationship.Order = ttFamilyFrom.number:
         end.
     
         if not available Member or not available Relationship then next.
     
-        /* If just transferring a person with a web account into another household, reset their web permissions */
+        /* If just transferring a person with a web account into another account, reset their web permissions */
         find first WebUserName no-lock where WebUserName.ParentRecord = Member.ID no-error.
-        if available WebUserName and ttFamilyFrom.mergeoptionfamily = "Transfer Member into the To Household" then run updateWebUserNamePermissions(rowid(Relationship)).
+        if available WebUserName and ttFamilyFrom.mergeoptionfamily = "Transfer Member into the To Account" then run updateWebUserNamePermissions(rowid(Relationship)).
     
         for first bufRelationship no-lock where
-            bufRelationship.ParentTableID = ToHHID and
+            bufRelationship.ParentTableID = ToAccountID and
             bufRelationship.ParentTable = "Account" and
             bufRelationship.ChildTable = "Member" and   
             bufRelationship.Order = newLink:
@@ -1472,7 +1472,7 @@ procedure ProcessMerge:
                 if bufMember.id <> Member.id then 
                 do:
                     run WebUserNameAdjustments (Member.ID, bufMember.ID, Relationship.ID, bufRelationship.ID, MergeOption).
-                    run FMAdjustments (Member.id, bufMember.id, MergeOption, no).   
+                    run MemberAdjustments (Member.id, bufMember.id, MergeOption, no).   
                     run UpdatebufMember (rowid(bufMember)). 
                     run RemoveMember (Member.id, bufMember.id, Relationship.id).
                 end.
@@ -1489,7 +1489,7 @@ procedure ProcessMerge:
                 run UpdateRelationship (Relationship.id, newlink, Relationship.Relationship).      
         end.
         for each AccountBenefits no-lock where 
-            AccountBenefits.HouseholdID = FromHHID and
+            AccountBenefits.HouseholdID = FromAccountID and
             AccountBenefits.QualifyingPersonID eq ttFamilyFrom.personID:
             run UpdateAccountBenefits (rowid(AccountBenefits),input newId). 
         end.  /*  FOR EACH END  */ 
@@ -1499,18 +1499,18 @@ procedure ProcessMerge:
   
     if not can-find(first ttFamilyFromPreMerge) then
         for each ttTeamFrom where ttTeamFrom.mergeoptionteam eq "Do Not Transfer/Merge":
-            ttTeamFrom.mergeoptionteam = "Transfer Team into the To Household".
+            ttTeamFrom.mergeoptionteam = "Transfer Team into the To Account".
         end.      
         
     for each ttTeamFrom where ttTeamFrom.mergeoptionteam ne "Do Not Transfer/Merge":
         run getNewLinkForTeam(output newLink).   
-        if FromHHNumber eq ToHHNumber and newLink eq ttTeamFrom.number then next. 
+        if FromAccountNumber eq ToAccountNumber and newLink eq ttTeamFrom.number then next. 
         run updateDetails(ttTeamFrom.teamid, ttTeamFrom.mergeoptionteam, "team", output newId).   
         find first LSTeam no-lock where LSTeam.ID = ttTeamFrom.teamid no-error.  
           
         for first Relationship no-lock where Relationship.ChildTableID = ttTeamFrom.teamid and
             Relationship.ChildTable = "LSTeam" and
-            Relationship.ParentTableID = FromHHID and
+            Relationship.ParentTableID = FromAccountID and
             Relationship.ParentTable = "Account" and           
             Relationship.Order = ttTeamFrom.number:
         end.
@@ -1518,7 +1518,7 @@ procedure ProcessMerge:
         if not available LSTeam or not available Relationship then
             next.
         for first bufRelationship no-lock where
-            bufRelationship.ParentTableID = ToHHID and
+            bufRelationship.ParentTableID = ToAccountID and
             bufRelationship.ParentTable = "Account" and
             bufRelationship.ChildTable = "LSTeam" and   
             bufRelationship.Order = newLink:
@@ -1539,31 +1539,31 @@ procedure ProcessMerge:
             run UpdateRelationship (Relationship.id, newlink, Relationship.Relationship).
    
         for each bufLSSchedule no-lock where bufLSSchedule.AwayTeamLinkID = ttTeamFrom.teamid:
-            run updateLeagueLSSchedule(bufLSSchedule.ID, ToHHNumber, newId, "away", "teamLinkID").
+            run updateLeagueLSSchedule(bufLSSchedule.ID, ToAccountNumber, newId, "away", "teamLinkID").
             run updateLSTeamStanding(ttTeamFrom.teamid, newId).
         end.
         for each bufLSSchedule no-lock where bufLSSchedule.HomeTeamLinkID = ttTeamFrom.teamid:
-            run updateLeagueLSSchedule(bufLSSchedule.ID, ToHHNumber, newId, "home", "teamLinkID").
+            run updateLeagueLSSchedule(bufLSSchedule.ID, ToAccountNumber, newId, "home", "teamLinkID").
             run updateLSTeamStanding(ttTeamFrom.teamid, newId).
         end.
     
     end.
   
     if lookup(MergeOption,"fullmerge,transfer") gt 0 then 
-    do: /**Do this after FM Piece to catch any still linked to old house ***/
+    do: /**Do this after Member Piece to catch any still linked to old house ***/
         for each TransactionDetail no-lock where
-            TransactionDetail.EntityNumber = FromHHNumber:
+            TransactionDetail.EntityNumber = FromAccountNumber:
             run UpdateSADetail (rowid(TransactionDetail)).
         end.  /*  FOR EACH END  */ 
     end.  
     /****************************************************************************/
-    /*  Update the FROM household for all types of conversions                  */
+    /*  Update the FROM account for all types of conversions                  */
     /****************************************************************************/
     FromHHNumberupdt:
     do:
   
-        find first bufFromAccount exclusive-lock where bufFromAccount.EntityNumber = FromHHNumber no-error no-wait.
-        FromHHID = if availabl bufFromAccount then bufFromAccount.id else 0.
+        find first bufFromAccount exclusive-lock where bufFromAccount.EntityNumber = FromAccountNumber no-error no-wait.
+        FromAccountID = if availabl bufFromAccount then bufFromAccount.id else 0.
         if not available bufFromAccount then leave FromHHNumberupdt.
        
         if MergeOption = "fullmerge" then assign
@@ -1586,17 +1586,17 @@ procedure ProcessMerge:
                 householdPhone     = bufFromAccount.PrimaryPhoneNumber 
                 householdPhoneExt  = bufFromAccount.PrimaryPhoneExtension 
                 householdPhoneType = bufFromAccount.PrimaryPhoneType 
-                hhid               = FromHHID.
+                hhid               = FromAccountID.
   
         if MergeOption = "transfer" /*and ConflictCount = 0*/ then assign
-                bufFromAccount.EntityNumber = ToHHNumber.   
+                bufFromAccount.EntityNumber = ToAccountNumber.   
         else if MergeOption = "fullmerge" /*and ConflictCount = 0*/ and
-                FromHHNumber ne ToHHNumber then delete bufFromAccount.
+                FromAccountNumber ne ToAccountNumber then delete bufFromAccount.
     
     end.  /*  FromHHNumberUPDT END  */    
   
     /****************************************************************************/
-    /*  Update the TO household for MERGE type conversions                      */
+    /*  Update the TO account for MERGE type conversions                      */
     /****************************************************************************/
     if lookup(MergeOption,"fullmerge,partialmerge") gt 0 then 
     do:
@@ -1604,8 +1604,8 @@ procedure ProcessMerge:
         ToHHNumberupdt:
         do:
   
-            find first bufToAccount exclusive-lock where bufToAccount.EntityNumber = ToHHNumber no-error no-wait.
-            ToHHID = if available bufToAccount then  bufToAccount.id else 0.
+            find first bufToAccount exclusive-lock where bufToAccount.EntityNumber = ToAccountNumber no-error no-wait.
+            ToAccountID = if available bufToAccount then  bufToAccount.id else 0.
             if MergeOption = "fullmerge" then assign 
                     bufToAccount.AutoPayBalance = if bufToAccount.EPayLink = 0 then autopay-opt else bufToAccount.AutoPayBalance 
                     bufToAccount.EPayLink       = if bufToAccount.EPayLink = 0 then cc-link else bufToAccount.EPayLink.
@@ -1633,26 +1633,26 @@ procedure ProcessMerge:
                         bufToAccount.PrimaryPhonetype      = householdPhonetype.
                 for each PhoneNumber no-lock where PhoneNumber.ParentRecord = hhid
                     and PhoneNumber.ParentTable = "Account":
-                    for first BUFPhone no-lock where BUFPhone.ParentRecord = ToHHID and 
+                    for first BUFPhone no-lock where BUFPhone.ParentRecord = ToAccountID and 
                         BufPhone.ParentTable = "Account" and 
                         BufPhone.phonenumber = PhoneNumber.PhoneNumber:
                         run purgesaphone (PhoneNumber.id).
                     end.  
                     if not available BUFPhone then
-                        run updatesaphone (PhoneNumber.id, ToHHID, if PhoneNumber.PhoneNumber = bufToAccount.PrimaryPhoneNumber then yes else no).
+                        run updatesaphone (PhoneNumber.id, ToAccountID, if PhoneNumber.PhoneNumber = bufToAccount.PrimaryPhoneNumber then yes else no).
                 end.
         
                 if bufToAccount.PrimaryEmailAddress = "" then bufToAccount.PrimaryEmailAddress = householdEmail.
                 for each EmailContact no-lock where EmailContact.ParentRecord = hhid
                     and EmailContact.ParentTable = "Account":
-                    for first BUFEmailAddress no-lock where BUFEmailAddress.ParentRecord = ToHHID and 
+                    for first BUFEmailAddress no-lock where BUFEmailAddress.ParentRecord = ToAccountID and 
                         BufEmailAddress.ParentTable = "Account" and 
                         BufEmailAddress.EmailAddress = EmailContact.EmailAddress:
                         run purgeEmailContact (EmailContact.id).
                     end.  
                     if not available BUFEmailAddress then 
                     do: 
-                        run updateEmailContact (EmailContact.id, ToHHID, if EmailContact.EmailAddress = 
+                        run updateEmailContact (EmailContact.id, ToAccountID, if EmailContact.EmailAddress = 
                             bufToAccount.PrimaryEmailAddress then yes else no).
                     end.  
                 end.
@@ -1666,16 +1666,16 @@ procedure ProcessMerge:
             end.  /* FULL MERGE END */
   
         end.  /*  ToHHNumberUPDT END  */    
-    end.  /*  UPDATE TO HOUSEHOLD IF MERGE END  */
+    end.  /*  UPDATE TO ACCOUNT IF MERGE END  */
 
     /*adjust the salinks for partialmerge*/
     if mergeoption eq "partialmerge" then 
     do:
-        run adjustSaLinks(FromHHNumber).
-        run adjustSaLinks(ToHHNumber).
+        run adjustSaLinks(FromAccountNumber).
+        run adjustSaLinks(ToAccountNumber).
     end.
   
-    if FromHHNumber ne ToHHNumber then run UpdateSaFeeHistoryStartingBalanceRecords.
+    if FromAccountNumber ne ToAccountNumber then run UpdateSaFeeHistoryStartingBalanceRecords.
   
 end procedure. /* PROCESSMERGE END */
 
@@ -1692,15 +1692,15 @@ procedure findconflict:
     if existsadetail.RecordType = "By Day" then 
     do: 
         for first ConflictSadetail no-lock where 
-            ConflictSadetail.EntityNumber = ToHHNumber and 
+            ConflictSadetail.EntityNumber = ToAccountNumber and 
             ConflictSadetail.PatronLinkID = newpatron and        
             ConflictSadetail.FileLinkid = ExistSadetail.filelinkid and
             ConflictTRANSACTIONDETAIL.BeginDateTime = ExistSadetail.BeginDateTime and 
             ConflictSadetail.CartStatus = "Complete"  and    
             ConflictSadetail.RecordStatus ne "Cancelled": 
             ConflictCount    = ConflictCount + 1.
-            run create-log ("From Household: " + string(FromHHNumber) +
-                "  To Household: " + string(ToHHNumber) + "  Option: " + if MergeOption = "transfer"
+            run create-log ("From Account: " + string(FromAccountNumber) +
+                "  To Account: " + string(ToAccountNumber) + "  Option: " + if MergeOption = "transfer"
                 then "Transfer" else if MergeOption = "fullmerge" then "Full Merge"
                 else "Partial Merge",
                 "Dupe enrollment for: " + String(newpatron) + 
@@ -1712,15 +1712,15 @@ procedure findconflict:
     end.
     else 
         for first ConflictSadetail no-lock where 
-            ConflictSadetail.EntityNumber = ToHHNumber and 
+            ConflictSadetail.EntityNumber = ToAccountNumber and 
             ConflictSadetail.PatronLinkID = newpatron and        
             ConflictSadetail.FileLinkid = ExistSadetail.filelinkid and  
             ConflictSadetail.CartStatus = "Complete"  and    
             ConflictSadetail.RecordStatus ne "Cancelled":
     
             ConflictCount    = ConflictCount + 1.
-            run create-log ("From Household: " + string(FromHHNumber) +
-                "  To Household: " + string(ToHHNumber) + "  Option: " + if MergeOption = "transfer"
+            run create-log ("From Account: " + string(FromAccountNumber) +
+                "  To Account: " + string(ToAccountNumber) + "  Option: " + if MergeOption = "transfer"
                 then "Transfer" else if MergeOption = "fullmerge" then "Full Merge"
                 else "Partial Merge",
                 "Dupe enrollment for: " + String(newpatron) + 
@@ -1733,11 +1733,11 @@ procedure findconflict:
       
 end procedure.
 
-procedure FMAdjustments:
+procedure MemberAdjustments:
     def input parameter InpOldId as int64 no-undo.
     def input parameter inpNewId as int64 no-undo.
     def input parameter inpRunoption as char no-undo.
-    def input parameter HHImportant as log no-undo. 
+    def input parameter AccountImportant as log no-undo. 
   
     def var dup-found as log no-undo.
     def buffer bufImmunizationRecord     for ImmunizationRecord.
@@ -1798,7 +1798,7 @@ procedure FMAdjustments:
 
     end. /***inpRunoption ne "transfer"***/
   
-    if not HHImportant then 
+    if not AccountImportant then 
     do:
         for each TransactionDetail no-lock where    
             TransactionDetail.PatronLinkID = InpOldId:
@@ -1849,7 +1849,7 @@ procedure FMAdjustments:
     for each EntityLink no-lock where  
         EntityLink.MemberLinkID = inpoldid:         
 
-        for first bufEntityLink no-lock where bufEntityLink.EntityNumber = ToHHNumber and
+        for first bufEntityLink no-lock where bufEntityLink.EntityNumber = ToAccountNumber and
             bufEntityLink.MemberLinkID = inpnewid and
             bufEntityLink.ExternalID = EntityLink.ExternalID:
             run DeleteSACrossReference (rowid(EntityLink)).       
@@ -1896,7 +1896,7 @@ procedure updateDetails:
     end.  /*  FOR EACH END  */                        
    
     for each TransactionDetail no-lock where TransactionDetail.PatronLinkID = personOrTeamId:   
-        /**Can't use HH number filter here - need to convert all linked to this person ***/
+        /**Can't use Account number filter here - need to convert all linked to this person ***/
         if TransactionDetail.Module = "AR" and
             TransactionDetail.CartStatus = "Complete" 
             and not sadetail.archived 
@@ -1941,7 +1941,7 @@ procedure updateEmergencyContact:
         if available buf-ContactEmergency then 
         do:
             assign 
-                buf-ContactEmergency.ParentRecord = ToHHID.
+                buf-ContactEmergency.ParentRecord = ToAccountID.
             assign
                 buf-ContactEmergency.Order = emnum + 1
                 emnum                        = emnum + 1.     
@@ -2005,7 +2005,7 @@ procedure UpdateEPayInfo:
   
     do for buf-EPayInfo transaction:     
         find buf-EPayInfo exclusive-lock where rowid(buf-EPayInfo) = row1 no-error no-wait.
-        if available buf-EPayInfo then assign buf-EPayInfo.ParentRecord = ToHHID.
+        if available buf-EPayInfo then assign buf-EPayInfo.ParentRecord = ToAccountID.
     end.
 
 end procedure. 
@@ -2018,7 +2018,7 @@ procedure updateCardTransactionLog:
   
     do for buf-CardTransactionLog transaction:     
         find buf-CardTransactionLog exclusive-lock where rowid(buf-CardTransactionLog) = row1 no-error no-wait.
-        if available buf-CardTransactionLog then assign buf-CardTransactionLog.ParentRecord = ToHHID.
+        if available buf-CardTransactionLog then assign buf-CardTransactionLog.ParentRecord = ToAccountID.
     end.
 
 end procedure.
@@ -2032,8 +2032,8 @@ procedure updateDocument:
     do for buf-File transaction:     
         find first buf-File exclusive-lock where buf-File.id = inp1 no-error no-wait.
         if available buf-File then assign
-                buf-File.ParentRecord = ToHHID
-                buf-File.Filename = replace(buf-File.Filename, "\" + string(FromHHID) + "\", "\" + string(ToHHID) + "\").
+                buf-File.ParentRecord = ToAccountID
+                buf-File.Filename = replace(buf-File.Filename, "\" + string(FromAccountID) + "\", "\" + string(ToAccountID) + "\").
     end.
 
 end procedure. 
@@ -2052,11 +2052,11 @@ procedure updateBinaryFile:
             find first buf-File exclusive-lock where buf-File.FileName = buf-BinaryFile.FileName no-error no-wait.      
             if available buf-File then assign
                     buf-File.Filename = NewFileName
-                    buf-File.ParentRecord = ToHHID.    
+                    buf-File.ParentRecord = ToAccountID.    
 
             assign
                 buf-BinaryFile.Filename   = NewFileName
-                buf-BinaryFile.FolderName = replace(buf-BinaryFile.FolderName,  "\" + string(FromHHID) + "\", "\" + string(ToHHID) + "\").
+                buf-BinaryFile.FolderName = replace(buf-BinaryFile.FolderName,  "\" + string(FromAccountID) + "\", "\" + string(ToAccountID) + "\").
         end.
     end.
 
@@ -2092,7 +2092,7 @@ procedure updateMailingAddress:
   
     do for buf-AccountAddress transaction:     
         find buf-AccountAddress exclusive-lock where rowid(buf-AccountAddress) = row1 no-error no-wait.
-        if available buf-AccountAddress then assign buf-AccountAddress.EntityNumber = ToHHNumber.
+        if available buf-AccountAddress then assign buf-AccountAddress.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2105,7 +2105,7 @@ procedure UpdateSAControlAccountHistory:
   
     do for buf-AccountBalanceLog transaction:     
         find buf-AccountBalanceLog exclusive-lock where rowid(buf-AccountBalanceLog) = row1 no-error no-wait.
-        if available buf-AccountBalanceLog then assign buf-AccountBalanceLog.EntityNumber = ToHHNumber.
+        if available buf-AccountBalanceLog then assign buf-AccountBalanceLog.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2118,7 +2118,7 @@ procedure UpdateSAPaymentHistory:
   
     do for buf-PaymentLog transaction:     
         find buf-PaymentLog exclusive-lock where rowid(buf-PaymentLog) = row1 no-error no-wait.
-        if available buf-PaymentLog then assign buf-PaymentLog.EntityNumber = ToHHNumber.
+        if available buf-PaymentLog then assign buf-PaymentLog.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2131,7 +2131,7 @@ procedure UpdateDPTicket:
   
     do for buf-DPTicket transaction:     
         find buf-DPTicket exclusive-lock where rowid(buf-DPTicket) = row1 no-error no-wait.
-        if available buf-DPTicket then assign buf-DPTicket.EntityNumber = ToHHNumber.
+        if available buf-DPTicket then assign buf-DPTicket.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2144,7 +2144,7 @@ procedure UpdateSADetail:
   
     do for buf-TransactionDetail transaction:     
         find buf-TransactionDetail exclusive-lock where rowid(buf-TransactionDetail) = row1 no-error no-wait.
-        if available buf-TransactionDetail then assign buf-TransactionDetail.EntityNumber = ToHHNumber.
+        if available buf-TransactionDetail then assign buf-TransactionDetail.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2157,7 +2157,7 @@ procedure UpdateSAGiftCertificateDetail:
   
     do for buf-VoucherDetail transaction:     
         find buf-VoucherDetail exclusive-lock where rowid(buf-VoucherDetail) = row1 no-error no-wait.
-        if available buf-VoucherDetail then assign buf-VoucherDetail.EntityNumber = ToHHNumber.
+        if available buf-VoucherDetail then assign buf-VoucherDetail.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2170,7 +2170,7 @@ procedure UpdateGRTournament:
   
     do for buf-GRTournament transaction:     
         find buf-GRTournament exclusive-lock where rowid(buf-GRTournament) = row1 no-error no-wait.
-        if available buf-GRTournament then assign buf-GRTournament.EntityNumber = ToHHNumber.
+        if available buf-GRTournament then assign buf-GRTournament.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2183,7 +2183,7 @@ procedure UpdateSARefund:
   
     do for buf-Reversal transaction:     
         find buf-Reversal exclusive-lock where rowid(buf-Reversal) = row1 no-error no-wait.
-        if available buf-Reversal then assign buf-Reversal.EntityNumber = ToHHNumber.
+        if available buf-Reversal then assign buf-Reversal.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2196,7 +2196,7 @@ procedure UpdateSAStatementHistory:
   
     do for buf-BillingStatement transaction:     
         find buf-BillingStatement exclusive-lock where rowid(buf-BillingStatement) = row1 no-error no-wait.
-        if available buf-BillingStatement then assign buf-BillingStatement.EntityNumber = ToHHNumber.
+        if available buf-BillingStatement then assign buf-BillingStatement.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2209,7 +2209,7 @@ procedure UpdateWebAddressChange:
   
     do for buf-WebAddressChange transaction:     
         find buf-WebAddressChange exclusive-lock where rowid(buf-WebAddressChange) = row1 no-error no-wait.
-        if available buf-WebAddressChange then assign buf-WebAddressChange.EntityNumber = ToHHNumber.
+        if available buf-WebAddressChange then assign buf-WebAddressChange.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2222,7 +2222,7 @@ procedure UpdateSABillingDetail:
   
     do for buf-InvoiceLineItem transaction:     
         find buf-InvoiceLineItem exclusive-lock where rowid(buf-InvoiceLineItem) = row1 no-error no-wait.
-        if available buf-InvoiceLineItem then assign buf-InvoiceLineItem.EntityNumber = ToHHNumber.
+        if available buf-InvoiceLineItem then assign buf-InvoiceLineItem.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2235,7 +2235,7 @@ procedure UpdateSAFeeHistory:
   
     do for buf-ChargeHistory transaction:     
         find buf-ChargeHistory exclusive-lock where rowid(buf-ChargeHistory) = row1 no-error no-wait.
-        if available buf-ChargeHistory then assign buf-ChargeHistory.PaymentHousehold = ToHHNumber.
+        if available buf-ChargeHistory then assign buf-ChargeHistory.PaymentHousehold = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2248,7 +2248,7 @@ procedure UpdateSASessionInfo:
   
     do for buf-UserSession transaction:     
         find buf-UserSession exclusive-lock where rowid(buf-UserSession) = row1 no-error no-wait.
-        if available buf-UserSession then assign buf-UserSession.EntityNumber = ToHHNumber.
+        if available buf-UserSession then assign buf-UserSession.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2260,7 +2260,7 @@ procedure UpdateSAGLDistribution2:
     do for buf-LedgerEntry transaction:
         find buf-LedgerEntry exclusive-lock where buf-LedgerEntry.id = inpid no-error no-wait.
         if available buf-LedgerEntry then assign
-                buf-LedgerEntry.EntityNumber = ToHHNumber 
+                buf-LedgerEntry.EntityNumber = ToAccountNumber 
                 buf-LedgerEntry.patronlinkid    = NEWLinkID.
     end.
 end procedure.
@@ -2273,7 +2273,7 @@ procedure UpdateSAGLDistribution:
   
     do for buf-LedgerEntry transaction:     
         find buf-LedgerEntry exclusive-lock where rowid(buf-LedgerEntry) = row1 no-error no-wait.
-        if available buf-LedgerEntry then assign buf-LedgerEntry.EntityNumber = ToHHNumber.
+        if available buf-LedgerEntry then assign buf-LedgerEntry.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2286,7 +2286,7 @@ procedure UpdateSAReceiptPayment:
   
     do for buf-PaymentTransaction transaction:     
         find buf-PaymentTransaction exclusive-lock where rowid(buf-PaymentTransaction) = row1 no-error no-wait.
-        if available buf-PaymentTransaction then assign buf-PaymentTransaction.PaymentHousehold = ToHHNumber.
+        if available buf-PaymentTransaction then assign buf-PaymentTransaction.PaymentHousehold = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2299,7 +2299,7 @@ procedure UpdateSAReceipt:
   
     do for buf-PaymentReceipt transaction:     
         find buf-PaymentReceipt exclusive-lock where rowid(buf-PaymentReceipt) = row1 no-error no-wait.
-        if available buf-PaymentReceipt then assign buf-PaymentReceipt.EntityNumber = ToHHNumber.
+        if available buf-PaymentReceipt then assign buf-PaymentReceipt.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2312,7 +2312,7 @@ procedure UpdateWebWishList:
   
     do for buf-WebWishList transaction:     
         find buf-WebWishList exclusive-lock where rowid(buf-WebWishList) = row1 no-error no-wait.
-        if available buf-WebWishList then assign buf-WebWishList.EntityNumber = ToHHNumber.
+        if available buf-WebWishList then assign buf-WebWishList.EntityNumber = ToAccountNumber.
     end.
 
 end procedure. 
@@ -2327,7 +2327,7 @@ procedure UpdateAccountBenefits:
     do for buf-SaHouseholdBenefits transaction:     
         find buf-SaHouseholdBenefits exclusive-lock where rowid(buf-SaHouseholdBenefits) = row1 no-error no-wait.
         if available buf-SaHouseholdBenefits then 
-            assign buf-SaHouseholdBenefits.HouseholdID        = ToHHID
+            assign buf-SaHouseholdBenefits.HouseholdID        = ToAccountID
                 buf-SaHouseholdBenefits.QualifyingPersonID = newId.
     end.
 
@@ -2349,14 +2349,14 @@ procedure UpdateSADetail2:
             if buf-TransactionDetail.EntityNumber = FromHHnumber then 
             do:
                 assign 
-                    buf-TransactionDetail.EntityNumber = ToHHnumber. 
+                    buf-TransactionDetail.EntityNumber = ToAccountNumber. 
  
                 for each Charge no-lock where           
                     Charge.ParentRecord = buf-TransactionDetail.ID and
                     Charge.ParentTable = "TransactionDetail":     
                     for each ChargeHistory no-lock where 
                         ChargeHistory.ParentRecord = Charge.ID and          
-                        ChargeHistory.PaymentHousehold = FromHHNumber:
+                        ChargeHistory.PaymentHousehold = FromAccountNumber:
                         run UpdateSAFeeHistory (rowid(ChargeHistory)). 
                     end.  /*  FOR EACH END  */     
                 end.  /*  FOR EACH END  */   
@@ -2364,7 +2364,7 @@ procedure UpdateSADetail2:
                 for each ChargeHistory no-lock where 
                     ChargeHistory.ParentRecord = buf-TransactionDetail.ID and
                     ChargeHistory.ParentTable = "TransactionDetail" and          
-                    ChargeHistory.PaymentHousehold = FromHHNumber:
+                    ChargeHistory.PaymentHousehold = FromAccountNumber:
                     run UpdateSAFeeHistory (rowid(ChargeHistory)). 
                 end.  /*  FOR EACH END  */         
             end.
@@ -2409,7 +2409,7 @@ procedure UpdateSAStaff:
 
             if ChangeStaffInfo then 
             do:
-                find BufAccount no-lock where BufAccount.EntityNumber = ToHHNumber no-error.
+                find BufAccount no-lock where BufAccount.EntityNumber = ToAccountNumber no-error.
                 if available BufAccount then assign
                         buf-Employee.Address1              = BufAccount.PrimaryAddress1
                         buf-Employee.Address2              = BufAccount.PrimaryAddress2
@@ -2519,7 +2519,7 @@ procedure UpdateCYProviderEnrolleeSchedule:
         find buf-CYProviderEnrolleeSchedule exclusive-lock where rowid(buf-CYProviderEnrolleeSchedule) = row1 no-error no-wait.
         if available buf-CYProviderEnrolleeSchedule then 
         do: 
-            if buf-CYProviderEnrolleeSchedule.EntityNumber = FromHHnumber then buf-CYProviderEnrolleeSchedule.EntityNumber = ToHHnumber.
+            if buf-CYProviderEnrolleeSchedule.EntityNumber = FromHHnumber then buf-CYProviderEnrolleeSchedule.EntityNumber = ToAccountNumber.
             assign 
                 buf-CYProviderEnrolleeSchedule.MemberLinkID = NEWLinkID.
         end.
@@ -2538,7 +2538,7 @@ procedure UpdateCYWaitlist2:
         find buf-CYWaitlist exclusive-lock where rowid(buf-CYWaitlist) = row1 no-error no-wait.
         if available buf-CYWaitlist then 
         do: 
-            if buf-CYWaitlist.EntityNumber = FromHHnumber then buf-CYWaitlist.EntityNumber = ToHHnumber.
+            if buf-CYWaitlist.EntityNumber = FromHHnumber then buf-CYWaitlist.EntityNumber = ToAccountNumber.
             assign 
                 buf-CYWaitlist.MemberLinkID = NEWLinkID.
         end.
@@ -2572,7 +2572,7 @@ procedure UpdateSABillingDetail2:
         find buf-InvoiceLineItem exclusive-lock where rowid(buf-InvoiceLineItem) = row1 no-error no-wait.
         if available buf-InvoiceLineItem then 
         do:  
-            if buf-InvoiceLineItem.EntityNumber = FromHHnumber then buf-InvoiceLineItem.EntityNumber = ToHHnumber.
+            if buf-InvoiceLineItem.EntityNumber = FromHHnumber then buf-InvoiceLineItem.EntityNumber = ToAccountNumber.
             assign 
                 buf-InvoiceLineItem.MemberLinkID = NEWLinkID.
         end.
@@ -2591,7 +2591,7 @@ procedure UpdatePSSerialTicket:
         find buf-PSSerialTicket exclusive-lock where rowid(buf-PSSerialTicket) = row1 no-error no-wait.
         if available buf-PSSerialTicket then 
         do:  
-            if buf-PSSerialTicket.EntityNumber = FromHHnumber then buf-PSSerialTicket.EntityNumber = ToHHnumber.
+            if buf-PSSerialTicket.EntityNumber = FromHHnumber then buf-PSSerialTicket.EntityNumber = ToAccountNumber.
       
             if buf-PSSerialTicket.MemberLinkID = oldLinkID then buf-PSSerialTicket.MemberLinkID = NEWLinkID.
         end.  
@@ -2610,7 +2610,7 @@ procedure UpdateSAWaiverHistory2:
         find buf-WaiverLog exclusive-lock where rowid(buf-WaiverLog) = row1 no-error no-wait.
         if available buf-WaiverLog then 
         do:  
-            if buf-WaiverLog.EntityNumber = FromHHnumber then buf-WaiverLog.EntityNumber = ToHHnumber.
+            if buf-WaiverLog.EntityNumber = FromHHnumber then buf-WaiverLog.EntityNumber = ToAccountNumber.
             buf-WaiverLog.ParentRecord = NEWLinkID.
         end.  
     end.
@@ -2628,7 +2628,7 @@ procedure UpdateSAPaymentHistory3:
         find buf-PaymentLog exclusive-lock where rowid(buf-PaymentLog) = row1 no-error no-wait.
         if available buf-PaymentLog then 
         do:
-            if buf-PaymentLog.EntityNumber = FromHHnumber then buf-PaymentLog.EntityNumber = ToHHnumber. 
+            if buf-PaymentLog.EntityNumber = FromHHnumber then buf-PaymentLog.EntityNumber = ToAccountNumber. 
        
             buf-PaymentLog.MemberLinkID = NEWLinkID.
         end.  
@@ -2647,7 +2647,7 @@ procedure UpdateSARefund2:
         find buf-Reversal exclusive-lock where rowid(buf-Reversal) = row1 no-error no-wait.
         if available buf-Reversal then 
         do:
-            if buf-Reversal.EntityNumber = FromHHnumber then buf-Reversal.EntityNumber = ToHHnumber. 
+            if buf-Reversal.EntityNumber = FromHHnumber then buf-Reversal.EntityNumber = ToAccountNumber. 
             assign
                 buf-Reversal.MemberLinkID = NEWLinkID.
         end.
@@ -2705,7 +2705,7 @@ procedure UpdateSACrossReference:
         find buf-EntityLink exclusive-lock where rowid(buf-EntityLink) = row1 no-error no-wait.
         if available buf-EntityLink then 
         do:
-            if buf-EntityLink.EntityNumber = FromHHnumber then buf-EntityLink.EntityNumber = ToHHnumber. 
+            if buf-EntityLink.EntityNumber = FromHHnumber then buf-EntityLink.EntityNumber = ToAccountNumber. 
             assign 
                 buf-EntityLink.MemberLinkID = NEWLinkID.
         end.
@@ -2736,7 +2736,7 @@ procedure UpdateRelationship2:
     do for buf-Relationship transaction:     
         find buf-Relationship exclusive-lock where buf-Relationship.id = inpid1 no-error no-wait.
         if available buf-Relationship then assign 
-                buf-Relationship.ParentTableID = ToHHID
+                buf-Relationship.ParentTableID = ToAccountID
                 buf-Relationship.childtableid  = inpid2
                 buf-Relationship.Order         = linkOrder. 
     end.
@@ -2755,9 +2755,9 @@ procedure UpdateRelationship3:
         do: 
             assign
                 buf-Relationship.childtableID = inpTOID.  
-            if buf-Relationship.ParentTableID = FromHHID then assign
-                    buf-Relationship.Primary       = no /***Can NOT have two primary members in same HH ***/
-                    buf-Relationship.ParentTableID = ToHHID.
+            if buf-Relationship.ParentTableID = FromAccountID then assign
+                    buf-Relationship.Primary       = no /***Can NOT have two primary members in same Account ***/
+                    buf-Relationship.ParentTableID = ToAccountID.
         end.
     end.
 
@@ -2773,8 +2773,8 @@ procedure UpdateRelationship:
     do for buf-Relationship transaction:     
         find buf-Relationship exclusive-lock where buf-Relationship.id =  inpID no-error no-wait.
         if available buf-Relationship then assign
-                buf-Relationship.Primary       = no /***Can NOT have two primary members in same HH ***/
-                buf-Relationship.ParentTableID = ToHHID
+                buf-Relationship.Primary       = no /***Can NOT have two primary members in same Account ***/
+                buf-Relationship.ParentTableID = ToAccountID
                 buf-Relationship.Order         = linkOrder
                 buf-Relationship.Relationship  = relationship. 
  
@@ -2826,8 +2826,8 @@ procedure RemoveMember:
     
         if available buf-Member then 
         do: 
-            run create-log ("From Household: " + string(FromHHNumber) +
-                "  To Household: " + string(ToHHNumber) + 
+            run create-log ("From Account: " + string(FromAccountNumber) +
+                "  To Account: " + string(ToAccountNumber) + 
                 "  Option: " + if MergeOption = "transfer"
                 then "Transfer" else if MergeOption = "fullmerge" then "Full Merge"
                 else "Partial Merge",
@@ -2860,8 +2860,8 @@ procedure RemoveLSTeam:
     
         if available buf-LSTeam then 
         do: 
-            run create-log ("From Household: " + string(FromHHNumber) +
-                "  To Household: " + string(ToHHNumber) + 
+            run create-log ("From Account: " + string(FromAccountNumber) +
+                "  To Account: " + string(ToAccountNumber) + 
                 "  Option: " + if MergeOption = "transfer"
                 then "Transfer" else if MergeOption = "fullmerge" then "Full Merge"
                 else "Partial Merge",
@@ -3028,7 +3028,7 @@ procedure UpdateMTCuslog:
         find first BufMTCuslog exclusive-lock where rowid(BufMTCuslog) = inprowid no-error no-wait.
         if available BufMTCuslog then 
         do: 
-            BufMTCuslog.CustomerNumber = ToHHnumber.
+            BufMTCuslog.CustomerNumber = ToAccountNumber.
         end.
     end. 
 end procedure.
@@ -3041,7 +3041,7 @@ procedure UpdateMTInvoice:
         find first BufMTInvoice exclusive-lock where rowid(BufMTInvoice) = inprowid no-error no-wait.
         if available BufMTInvoice then 
         do: 
-            BufMTInvoice.CustomerNumber = ToHHnumber.
+            BufMTInvoice.CustomerNumber = ToAccountNumber.
         end.
     end. 
 end procedure.
@@ -3052,21 +3052,21 @@ procedure UpdateSaFeeHistoryStartingBalanceRecords:
     do:
         for first ChargeHistory no-lock where 
             ChargeHistory.RecordStatus eq "Starting Balance" and
-            ChargeHistory.ParentRecord eq FromHHID and 
+            ChargeHistory.ParentRecord eq FromAccountID and 
             ChargeHistory.ParentTable eq "Account":
             run deleteChargeHistory (rowid(ChargeHistory)).  
         end.    
-        run CreateSAFeeHistory (FromHHID, FromHHNumber).
+        run CreateSAFeeHistory (FromAccountID, FromAccountNumber).
     end.
 
     for first ChargeHistory no-lock where 
         ChargeHistory.RecordStatus eq "Starting Balance" and
-        ChargeHistory.ParentRecord eq ToHHID and 
+        ChargeHistory.ParentRecord eq ToAccountID and 
         ChargeHistory.ParentTable eq "Account":
         run deleteChargeHistory (rowid(ChargeHistory)).  
     end.  
             
-    run CreateSAFeeHistory (ToHHID, ToHHNumber).    
+    run CreateSAFeeHistory (ToAccountID, ToAccountNumber).    
          
 end procedure.
 
@@ -3087,11 +3087,11 @@ procedure CreateSAFeeHistory:
     def input parameter inpid as int64 no-undo.
     def input parameter inpHH as int no-undo.
   
-    def var HHDRbal as dec no-undo. 
+    def var AccountDRbal as dec no-undo. 
   
     def buffer bufChargeHistory for ChargeHistory.
   
-    run business/CalcHouseholdBalance.p (inpHH, "", 0, yes, "OverallBalance", no, output HHDRbal).
+    run business/CalcHouseholdBalance.p (inpHH, "", 0, yes, "OverallBalance", no, output AccountDRbal).
   
     do for bufChargeHistory transaction:   
         create bufChargeHistory.
@@ -3100,8 +3100,8 @@ procedure CreateSAFeeHistory:
             bufChargeHistory.BillDate            = ?                  
             bufChargeHistory.CashDrawer          = 0               
             bufChargeHistory.DiscountAmount      = 0             
-            bufChargeHistory.FeeAmount           = if HHDRbal gt 0 then HHDRbal else 0                  
-            bufChargeHistory.FeePaid             = if HHDRbal lt 0 then abs(HHDRbal) else 0                  
+            bufChargeHistory.FeeAmount           = if AccountDRbal gt 0 then AccountDRbal else 0                  
+            bufChargeHistory.FeePaid             = if AccountDRbal lt 0 then abs(AccountDRbal) else 0                  
             bufChargeHistory.LogDate             = today                     
             bufChargeHistory.LogTime             = time
             bufChargeHistory.MiscInformation     = ""                  
@@ -3135,7 +3135,7 @@ procedure UpdateSAContract:
   
     do for buf-Agreement transaction:     
         find buf-Agreement exclusive-lock where rowid(buf-Agreement) = row1 no-error no-wait.
-        if available buf-Agreement then assign Agreement.EntityNumber = ToHHNumber.
+        if available buf-Agreement then assign Agreement.EntityNumber = ToAccountNumber.
     end.
 end procedure.
 
@@ -3157,7 +3157,7 @@ procedure WebUserNameAdjustments:
     do:
         if available bufToWebUserName then 
         do:
-            /* If "To" household also has a webusername, keep most recent one, or if both are unused, keep the "To" WebUserName */
+            /* If "To" account also has a webusername, keep most recent one, or if both are unused, keep the "To" WebUserName */
             if bufFromWebUserName.LastLoginDateTime ne ? and (bufFromWebUserName.LastLoginDateTime gt bufToWebUserName.LastLoginDateTime) then 
             do:
                 run DeleteWebUserName(rowid(bufToWebUserName)).

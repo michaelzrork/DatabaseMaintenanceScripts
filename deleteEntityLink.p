@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-    File        : deleteSACrossReference.p
+    File        : deleteEntityLink.p
     Purpose     : Delete accidental Cross Reference records
 
     Syntax      : 
@@ -23,7 +23,7 @@ recCount = 0.
 *************************************************************************/
 
 for each EntityLink no-lock where EntityLink.memberlinkid = 0 and EntityLink.EntityNumber < 88376:
-    run deleteSACrossReference(EntityLink.ID).
+    run deleteEntityLink(EntityLink.ID).
 end.
 
 run ActivityLog.
@@ -50,7 +50,7 @@ procedure ActivityLog:
     do for bufActivityLog transaction:
         create bufActivityLog.
         assign
-            bufActivityLog.SourceProgram = "deleteSACrossReference.p"
+            bufActivityLog.SourceProgram = "deleteEntityLink.p"
             bufActivityLog.UserName      = "SYSTEM"
             bufActivityLog.LogDate       = today
             bufActivityLog.LogTime       = time

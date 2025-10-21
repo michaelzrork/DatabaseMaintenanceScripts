@@ -29,7 +29,7 @@ define variable logfileTime as integer   no-undo.
 define variable numRecs     as integer   no-undo init 0.
 define variable hhRecs      as integer   no-undo init 0.
 define variable personName  as character no-undo init "".
-define variable hhNum       as integer   no-undo init 0. 
+define variable accountNum       as integer   no-undo init 0. 
 define variable fmRecs      as integer   no-undo init 0.
 
 assign
@@ -67,7 +67,7 @@ run put-stream (
     "Parent Table," +
     "Parent ID," +
     "Member ID," +
-    "HH Num," +
+    "Account Num," +
     "Name," +
     "Phone Number," +
     "Phone Ext," +
@@ -153,19 +153,19 @@ for each PhoneNumber no-lock:
     do:
         find first Account no-lock where Account.ID = PhoneNumber.ParentRecord no-error.
         if available Account then assign 
-                hhNum = Account.EntityNumber.
+                accountNum = Account.EntityNumber.
     end.
     
     run deletePhoneNumber(PhoneNumber.ID).
 end.
 
-household-loop:
+account-loop:
 for each Account no-lock where Account.PrimaryPhoneNumber <> "":
     find first ttSkip where ttSkip.ID = Account.ID no-error.
-    if available ttSkip then next household-loop.
+    if available ttSkip then next account-loop.
     assign 
         personName = trim(getString(Account.FirstName + " " + getString(Account.LastName)))
-        hhNum      = Account.EntityNumber.
+        accountNum      = Account.EntityNumber.
     run stripHHPhone(Account.ID).
 end.
 
@@ -185,7 +185,7 @@ do ixLog = 1 to inpfile-num:
 end.
 
 /* CREATE AUDIT LOG RECORD */
-run ActivityLog({&ProgramDescription},"Check Document Center for " + {&ProgramName} + "Log for a log of Records Changed","Number of Phone Records Deleted: " + string(numRecs) + "; Number of HH Numbers Removed: " + string(hhRecs) + "; " + "Number of FM Numbers Removed: " + string(fmRecs),"").
+run ActivityLog({&ProgramDescription},"Check Document Center for " + {&ProgramName} + "Log for a log of Records Changed","Number of Phone Records Deleted: " + string(numRecs) + "; Number of Account Numbers Removed: " + string(hhRecs) + "; " + "Number of Member Numbers Removed: " + string(fmRecs),"").
 
 /*************************************************************************
                             INTERNAL PROCEDURES
@@ -216,8 +216,8 @@ procedure deleteSAPhone:
                 /*Member ID*/
                 getString(string(bufPhoneNumber.MemberLinkID))
                 + "~",~"" +
-                /*HH Num*/
-                (if hhNum <> 0 then getString(string(hhNum)) else "N/A")
+                /*Account Num*/
+                (if accountNum <> 0 then getString(string(accountNum)) else "N/A")
                 + "~",~"" +
                 /*Name*/
                 getString(personName)
@@ -262,8 +262,8 @@ procedure stripHHPhone:
                 /*Member ID*/
                 "N/A"
                 + "~",~"" +
-                /*HH Num*/
-                (if hhNum <> 0 then getString(string(hhNum)) else "N/A")
+                /*Account Num*/
+                (if accountNum <> 0 then getString(string(accountNum)) else "N/A")
                 + "~",~"" +
                 /*Name*/
                 getString(personName)
@@ -312,8 +312,8 @@ procedure stripFMPhone:
                 /*Member ID*/
                 "N/A"
                 + "~",~"" +
-                /*HH Num*/
-                (if hhNum <> 0 then getString(string(hhNum)) else "N/A")
+                /*Account Num*/
+                (if accountNum <> 0 then getString(string(accountNum)) else "N/A")
                 + "~",~"" +
                 /*Name*/
                 getString(personName)

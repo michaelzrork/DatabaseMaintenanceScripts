@@ -57,9 +57,9 @@ for each LookupCode no-lock where LookupCode.RecordType = "Fee":
     feecodeList = list(LookupCode.RecordCode,feecodeList).
 end.
 
-run put-stream ("Household ID,Household Number,Original Feecode List,New Feecode List").
+run put-stream ("Account ID,Account Number,Original Feecode List,New Feecode List").
 
-/* FIND ANY HOUSEHOLD THAT HAS MORE THAN ONE FEECODE - THIS WON'T BE HOUSEHOLDS WITH MULTIPLES OF THE SAME FEECODE, BUT IF THEY ONLY HAVE ONE FEECODE WE DON'T CARE */
+/* FIND ANY ACCOUNT THAT HAS MORE THAN ONE FEECODE - THIS WON'T BE ACCOUNTS WITH MULTIPLES OF THE SAME FEECODE, BUT IF THEY ONLY HAVE ONE FEECODE WE DON'T CARE */
 /* BASICALY, NUM-ENTRIES ONLY COUNTS THE TOTAL NUMBER OF ITEMS, AND THERE ISN'T A WAY TO COUNT HOW MANY OF ONE SPECIFIC ITEM THAT I COULD FIND OR FIGURE OUT */
 for each Account no-lock where num-entries(Account.CodeValue) > 1:
     do ix = 1 to num-entries(feecodeList):
@@ -102,10 +102,10 @@ procedure removeExtraFeecode:
             bufAccount.CodeValue = list(feecodeToRemove,bufAccount.CodeValue).
         /* LOG THE CHANGES */
         run put-stream ("~"" +
-            /*Household ID*/
+            /*Account ID*/
             getString(string(bufAccount.ID))
             + "~",~"" +
-            /*Household Number*/
+            /*Account Number*/
             getString(string(bufAccount.EntityNumber))
             + "~",~"" +
             /*Original Feecode List*/

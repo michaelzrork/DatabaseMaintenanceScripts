@@ -43,7 +43,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELD HEADERS
-run put-stream ("ID,Household Number,Due Date,Invoice Number,Receipt Number,Record Status,BinaryFileLinkID,MiscInformation,WordIndex,").
+run put-stream ("ID,Account Number,Due Date,Invoice Number,Receipt Number,Record Status,BinaryFileLinkID,MiscInformation,WordIndex,").
 
 // PURGE STATEMENT HISTORY
 for each BillingStatement no-lock:

@@ -43,7 +43,7 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Household Number,Item Description,ParentID,CloneID,Fee ID,Fee Description,Log Date,Record Receipt Number,Original Record Status,Original Previous Status,New Record Status,New Previous Status,Reset Fee Log Date,Reset Fee Receipt Number,Reset Fee Record Status,Reset Fee Previous Status").
+run put-stream ("Account Number,Item Description,ParentID,CloneID,Fee ID,Fee Description,Log Date,Record Receipt Number,Original Record Status,Original Previous Status,New Record Status,New Previous Status,Reset Fee Log Date,Reset Fee Receipt Number,Reset Fee Record Status,Reset Fee Previous Status").
 
 fee-loop:
 for each Charge no-lock where Charge.CloneID <> 0 and lookup(Charge.RecordStatus,"Active,Charge,NoCharge,Reset") > 0 by Charge.ID:
@@ -97,7 +97,7 @@ procedure updateFeeStatus:
         find first bufCharge exclusive-lock where bufCharge.ID = inpID no-error no-wait.
         if available bufCharge then 
         do:
-            // Household Number,Item Description,ParentID,CloneID,Fee ID,Fee Description,Log Date,Record Receipt Number,Original Record Status,Original Previous Status,New Record Status,New Previous Status,Reset Fee Log Date,Reset Fee Receipt Number,Reset Fee Record Status,Reset Fee Previous Status
+            // Account Number,Item Description,ParentID,CloneID,Fee ID,Fee Description,Log Date,Record Receipt Number,Original Record Status,Original Previous Status,New Record Status,New Previous Status,Reset Fee Log Date,Reset Fee Receipt Number,Reset Fee Record Status,Reset Fee Previous Status
             run put-stream((if available TransactionDetail then string(TransactionDetail.EntityNumber) else "TransactionDetail Record Not Found") + "," + (if available TransactionDetail then replace(TransactionDetail.Description,",","") else "TransactionDetail Record Not Found") + "," + string(bufCharge.ParentRecord) + "," + string(bufCharge.CloneID) + "," + string(bufCharge.ID) + "," + replace(bufCharge.Description,",","") + "," + string(bufCharge.LogDate) + "," + string(bufCharge.ReceiptNumber) + "," + bufCharge.RecordStatus + "," + bufCharge.PreviousStatus + "," + newRecordStatus + "," + newPreviousStatus + "," + string(resetLogDate) + "," + string(resetReceipt) + "," + resetRecordStatus + "," + resetPreviousStatus).
             assign
                 feesUpdated             = feesUpdated + 1

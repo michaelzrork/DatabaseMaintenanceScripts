@@ -1,14 +1,14 @@
 /****************************************************************************************
                                                                                       
     DESCRIPTION:                                                                    
-    Changes the FeeCode to Non-Member if the HH Feature is set to Renter and
+    Changes the FeeCode to Non-Member if the Account Feature is set to Renter and
     the Last Reviewed Date is before the begining of the year             
                                                                                       
     DATE CREATED: 03/14/2023                                                         
     LAST UPDATED: 03/15/2023                                                                  
                                                                                       
     NOTES:
-    - Not currently set up to sync FM Fee Codes                                                                                          
+    - Not currently set up to sync Member Fee Codes                                                                                          
                                                                                       
 ****************************************************************************************/
 
@@ -34,9 +34,9 @@ define variable numHHFeaturesUpdated as integer no-undo.
 
 newFeeCode = "Non-Member".
 feecodetoReplace = "RA Member". 
-hhFeatureReset = "Renter". /* HH FEATURE USED TO RESET FEE CODE */
+hhFeatureReset = "Renter". /* Account FEATURE USED TO RESET FEE CODE */
 checkLastReviewed = 01/01/2024. /* DATE USED TO CHECK FOR RECENT VERIFICATION */
-hhStatusQuestion = 178522. /* HH STATUS QUESTION ID */
+hhStatusQuestion = 178522. /* Account STATUS QUESTION ID */
 lastReviewedQuestion = 3203615. /* LAST REVIEWED DATE QUESTION ID */
 numRecords = 0.
 numHHFeaturesUpdated = 0.
@@ -48,18 +48,18 @@ numHHFeaturesUpdated = 0.
 
 for each Account no-lock:
     
-    /* RESET HH STATUS ANSWER BETWEEN EACH HH */
+    /* RESET Account STATUS ANSWER BETWEEN EACH Account */
     hhStatusAnswer = "".
     
-    /* FIND HH ANSWER TO HH STATUS QUESTION */
+    /* FIND Account ANSWER TO Account STATUS QUESTION */
     for first QuestionResponse no-lock where QuestionResponse.DetailLinkID = Account.ID and QuestionResponse.QuestionLinkId = hhStatusQuestion:
         hhStatusAnswer = QuestionResponse.Answer.
-    end. /* FIND HH ANSWER */
+    end. /* FIND Account ANSWER */
     
-    /* MATCH HH FEATURES TO HH STATUS QUESTION */
+    /* MATCH Account FEATURES TO Account STATUS QUESTION */
     if hhStatusAnswer <> Account.Features then do:
         run syncFeatures(Account.ID).
-    end. /* MATCH HH FEATURE */
+    end. /* MATCH Account FEATURE */
     
     /* FIND LAST REVIEWED DATE */
     for first QuestionResponse no-lock where QuestionResponse.DetailLinkID = Account.ID and QuestionResponse.QuestionLinkID = lastReviewedQuestion: 
@@ -80,7 +80,7 @@ run ActivityLog.
              PROCEDURES
 **************************************/
 
-procedure syncFeatures: /* SYNCS HH FEATURES WITH THE HH STATUS QUESTION ANSWER */
+procedure syncFeatures: /* SYNCS Account FEATURES WITH THE Account STATUS QUESTION ANSWER */
     define input parameter inpid as int64.
     define buffer bufAccount for Account.
     do for bufAccount transaction:
@@ -123,7 +123,7 @@ procedure ActivityLog: /* CREATES AUDIT LOG ENTRY OF NUM RECORDS CHANGED */
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.LogTime       = time
             BufActivityLog.Detail1       = "Reset Renters to Non-Members"
-            BufActivityLog.Detail2       = "Num HH Features Synced to HH Status: " + string(numHHFeaturesUpdated) + "; Num Renter HH Reset to NonMem: " + string(numRecords).
+            BufActivityLog.Detail2       = "Num Account Features Synced to Account Status: " + string(numHHFeaturesUpdated) + "; Num Renter Account Reset to NonMem: " + string(numRecords).
     end.
   
 end procedure.
