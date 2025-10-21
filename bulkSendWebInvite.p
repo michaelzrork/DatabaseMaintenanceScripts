@@ -9,8 +9,10 @@
 
    Author(s)   : michaelzr
    Created     : 3/12/25
-   Notes       : Code pulled and modified from WebAccountManagement.p
-
+   Notes       : Some of the code here, specifically the object models, was originally pulled
+                 and heavily modified from WebAccountManagement.p, which was written by Vermont Systems Staff.
+                 The overall logic for sending WebTrac invite emails was written written by Michael Rork with
+                 guidance on using the objects from Chris Ebbs.
  ----------------------------------------------------------------------*/
  
 /*************************************************************************
@@ -19,8 +21,8 @@
 
 block-level on error undo, throw.
 
-using Business.Library.Model.BO.HouseholdBO.HouseholdBO from propath.
-using Business.Library.Model.BO.PersonBO.PersonBO from propath.
+using Business.Library.Model.BO.AccountBO.AccountBO from propath.
+using Business.Library.Model.BO.MemberBO.MemberBO from propath.
 using Business.Library.Model.BO.WebInviteBO.WebInvitesBO from propath.
 using Business.Library.Model.BO.LinkBO.LinkBO from propath.
 using Business.Library.Model.DAO.Core.DAO from propath.
@@ -41,13 +43,13 @@ define variable logfileTime        as integer      no-undo.
 define variable numEmailsSent      as integer      no-undo. 
 define variable numPermissions     as integer      no-undo.
 define variable accountStatus      as character    no-undo.
-define variable skipHouseholds     as character    no-undo.
+define variable skipAccounts     as character    no-undo.
 define variable permissionsUpdated as logical      no-undo.
 define variable inviteSent         as logical      no-undo.
 define variable ix                 as integer      no-undo.
 
-define variable oHouseholdBO       as HouseholdBO  no-undo.
-define variable oPersonBO          as PersonBO     no-undo.
+define variable oAccountBO       as AccountBO  no-undo.
+define variable oMemberBO          as MemberBO     no-undo.
 define variable oLinkBO            as LinkBO       no-undo.
 define variable oWebInvitesBO      as WebInvitesBO no-undo.
 
@@ -59,28 +61,28 @@ assign
     numPermissions     = 0
     inviteSent         = no
     permissionsUpdated = no
-    skipHouseholds     = "999999999".
+    skipAccounts     = "999999999".
 
 
 /*************************************************************************
                                 MAIN BLOCK
 *************************************************************************/
 
-/* FIND ALL INTERNAL AND MODEL HOUSEHOLDS */
+/* FIND ALL INTERNAL AND MODEL ACCOUNTS */
 profilefield-loop:
-for each CustomField no-lock where CustomField.FieldName = "InternalHousehold" or CustomField.FieldName begins "ModelHousehold":
+for each CustomField no-lock where CustomField.FieldName = "InternalAccount" or CustomField.FieldName begins "ModelAccount":
     if getString(CustomField.FieldValue) = "" then next profilefield-loop.
     do ix = 1 to num-entries(getString(CustomField.FieldValue)):
-        skipHouseholds = uniquelist(entry(ix,getString(CustomField.FieldValue)),skipHouseholds,",").
+        skipAccounts = uniquelist(entry(ix,getString(CustomField.FieldValue)),skipAccounts,",").
     end. 
 end.
 
 /* CREATE LOG FILE FIELD HEADERS */
 run put-stream (
-    "Household Number," +
+    "Account Number," +
     "HH Creation Date," +
     "HH Last Active Date," +
-    "Person ID," +
+    "Member ID," +
     "First Name," +
     "Last Name," +
     "Primary Guardian," +
@@ -96,14 +98,14 @@ run put-stream (
     "Permissions Added?," +
     "Invite Sent?,").
     
-/* HOUSEHOLD LOOP */   
-hh-loop:
+/* Account LOOP */   
+account-loop:
 for each Account no-lock where Account.RecordStatus = "Active":
     
-    /* SKIP GUEST AND ALL INTERNAL AND MODEL HOUSEHOLDS */
-    if lookup(string(Account.EntityNumber),skipHouseholds) > 0 then next hh-loop.
+    /* SKIP GUEST AND ALL INTERNAL AND MODEL ACCOUNTS */
+    if lookup(string(Account.EntityNumber),skipAccounts) > 0 then next account-loop.
    
-    /* LOOP THROUGH ALL MEMBERS OF THE HOUSEHOLD */
+    /* LOOP THROUGH ALL MEMBERS OF THE ACCOUNT */
     member-loop:
     for each Relationship no-lock where Relationship.ParentTable = "Account"
         and Relationship.ParentTableID = Account.ID
@@ -114,22 +116,22 @@ for each Account no-lock where Account.RecordStatus = "Active":
         if not available Member or Member.RecordStatus <> "Active" or isEmpty(Member.PrimaryEmailAddress) then next member-loop.
 
         assign
-            oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
-            oPersonBO          = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE RELATIONSHIP OBJECT */
+            oAccountBO       = AccountBO:GetByAccountID(Account.ID)       /* GRABS THE ACCOUNT OBJECT */
+            oMemberBO          = MemberBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
+            oLinkBO            = oMemberBO:GetLinkToRecord(oAccountBO:Account)  /* GRABS THE RELATIONSHIP OBJECT */
             permissionsUpdated = no
             inviteSent         = no.
         
-        if not valid-object(oHouseholdBO) or not valid-object(oPersonBO) or not valid-object(oLinkBO) then next member-loop.
+        if not valid-object(oAccountBO) or not valid-object(oMemberBO) or not valid-object(oLinkBO) then next member-loop.
         
         /* SKIP ANY FAMILY MEMBERS WITHOUT A VALID AND VERIFIED EMAIL ADDRESS */
-        if not oPersonBO:PrimaryEmailAddressVerified() or not EmailAddressFormatValidator:valid(oPersonBO:Person:Vals:PrimaryEmailAddress) then next member-loop.
+        if not oMemberBO:PrimaryEmailAddressVerified() or not EmailAddressFormatValidator:valid(oMemberBO:Member:Vals:PrimaryEmailAddress) then next member-loop.
         
         /* GRAB THE WEBINVITE INFORMATION */
-        oWebInvitesBO = new WebInvitesBO(oHouseholdBO:HouseholdNumber, oPersonBO:MemberNumber).
+        oWebInvitesBO = new WebInvitesBO(oAccountBO:AccountNumber, oMemberBO:MemberNumber).
        
         /* IF THEY DO NOT HAVE ACCOUNT MANAGEMENT PERMISSIONS, SET THEM */
-        if oPersonBO:IsPrimaryGuardianForHousehold(oHouseholdBO) and isEmpty(oLinkBO:link:Vals:WebPermissions) then 
+        if oMemberBO:IsPrimaryGuardianForAccount(oAccountBO) and isEmpty(oLinkBO:link:Vals:WebPermissions) then 
         do:
             assign 
                 numPermissions     = numPermissions + 1
@@ -141,18 +143,18 @@ for each Account no-lock where Account.RecordStatus = "Active":
         
         /* DETERMINE THE ACCOUNT STATUS */
         assign 
-            accountStatus = (if oPersonBO:IsWebLockedOut() then "Locked Out"
-            else if (not oPersonBO:HasWebAccount() or not oLinkBO:HasWebAccess()) and oWebInvitesBO:hasInvites() then "Invite Pending"
-            else if not oPersonBO:HasWebAccount() or not oLinkBO:HasWebAccess() then "No Access"
+            accountStatus = (if oMemberBO:IsWebLockedOut() then "Locked Out"
+            else if (not oMemberBO:HasWebAccount() or not oLinkBO:HasWebAccess()) and oWebInvitesBO:hasInvites() then "Invite Pending"
+            else if not oMemberBO:HasWebAccount() or not oLinkBO:HasWebAccess() then "No Access"
             else "User Active").
             
         /* IF NO WEBTRAC ACCESS, SEND INVITE */
-        if accountStatus = "No Access" then run sendWebInvite(oHouseholdBO,oLinkBO,oPersonBO).
+        if accountStatus = "No Access" then run sendWebInvite(oAccountBO,oLinkBO,oMemberBO).
     
         /* LOG CHANGES */
         if permissionsUpdated or inviteSent then run put-stream("~"" +
-                /*Household Number*/
-                string(oHouseholdBO:HouseholdNumber)
+                /*Account Number*/
+                string(oAccountBO:AccountNumber)
                 + "~",~"" +
                 /*HH Creation Date*/
                 getString(string(Account.CreationDate))
@@ -160,32 +162,32 @@ for each Account no-lock where Account.RecordStatus = "Active":
                 /*HH Last Active Date*/
                 getString(string(Account.LastActiveDate))
                 + "~",~"" +
-                /*Person ID*/
-                string(oPersonBO:MemberNumber)
+                /*Member ID*/
+                string(oMemberBO:MemberNumber)
                 + "~",~"" +
                 /*First Name*/
-                getString(oPersonBO:FirstName)
+                getString(oMemberBO:FirstName)
                 + "~",~"" +
                 /*Last Name*/
-                getString(oPersonBO:LastName)
+                getString(oMemberBO:LastName)
                 + "~",~"" +
                 /*Primary Guardian*/
-                (if oPersonBO:IsPrimaryGuardianForHousehold(oHouseholdBO) then "Yes" else "No")
+                (if oMemberBO:IsPrimaryGuardianForAccount(oAccountBO) then "Yes" else "No")
                 + "~",~"" +
                 /*Email Address*/
-                oPersonBO:Person:Vals:PrimaryEmailAddress
+                oMemberBO:Member:Vals:PrimaryEmailAddress
                 + "~",~"" +
                 /*Email Verified*/
-                (if oPersonBO:PrimaryEmailAddressVerified() then "Yes" else "No")
+                (if oMemberBO:PrimaryEmailAddressVerified() then "Yes" else "No")
                 + "~",~"" +
                 /*Email Opted In*/
-                (if oPersonBO:GetPrimaryEmailOptedIn() then "Yes" else "No")
+                (if oMemberBO:GetPrimaryEmailOptedIn() then "Yes" else "No")
                 + "~",~"" +
                 /*WebTrac Username*/
-                (if oPersonBO:WebUserName:UserName = "" then "None" else oPersonBO:WebUserName:UserName)
+                (if oMemberBO:WebUserName:UserName = "" then "None" else oMemberBO:WebUserName:UserName)
                 + "~",~"" +
                 /*Has Web Account*/
-                (if oPersonBO:HasWebAccount() then "Yes" else "No")
+                (if oMemberBO:HasWebAccount() then "Yes" else "No")
                 + "~",~"" +
                 /*Has Web Access*/
                 (if oLinkBO:HasWebAccess() then "Yes" else "No")
@@ -194,9 +196,9 @@ for each Account no-lock where Account.RecordStatus = "Active":
                 (if oWebInvitesBO:hasInvites() then "Yes" else "No")
                 + "~",~"" +
                 /*Account Status*/
-                (if oPersonBO:IsWebLockedOut() then "Locked Out"
-                else if (not oPersonBO:HasWebAccount() or not oLinkBO:HasWebAccess()) and oWebInvitesBO:hasInvites() then "Invite Pending"
-                else if not oPersonBO:HasWebAccount() or not oLinkBO:HasWebAccess() then "No Access"
+                (if oMemberBO:IsWebLockedOut() then "Locked Out"
+                else if (not oMemberBO:HasWebAccount() or not oLinkBO:HasWebAccess()) and oWebInvitesBO:hasInvites() then "Invite Pending"
+                else if not oMemberBO:HasWebAccount() or not oLinkBO:HasWebAccess() then "No Access"
                 else "User Active")
                 + "~",~"" +
                 /*Permissions*/
@@ -226,13 +228,13 @@ run ActivityLog({&ProgramDescription},"Check Document Center for " + {&ProgramNa
 
 /* SEND WEB INVITE EMAIL */
 procedure sendWebInvite:
-    define input parameter oHouseholdBO as HouseholdBO no-undo.
+    define input parameter oAccountBO as AccountBO no-undo.
     define input parameter oLinkBO      as LinkBO      no-undo.
-    define input parameter oPersonBO    as PersonBO    no-undo.
+    define input parameter oMemberBO    as MemberBO    no-undo.
     define variable oResults as Results no-undo.
     
     /* SEND THE WEBTRAC INVITE EMAIL */
-    oResults = oPersonBO:SendInviteEmailForHousehold(oHouseholdBO, oPersonBO:Person:Vals:PrimaryEmailAddress).
+    oResults = oMemberBO:SendInviteEmailForAccount(oAccountBO, oMemberBO:Member:Vals:PrimaryEmailAddress).
     if not oResults:Success then return.
        
     assign 

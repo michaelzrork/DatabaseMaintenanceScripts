@@ -8,7 +8,11 @@
 
     Author(s)   : michaelzr
     Created     : 1/10/2024
-    Notes       : 
+    Notes       : Much of the code in this program was pulled directly from
+                  HouseholdMerge.p and modified to fit the purpose of merging
+                  duplicate family members within the Guest household, which
+                  is excluded from the HouseholdMerge.p program. Borrowed code
+                  is marked as such within the program.
   ----------------------------------------------------------------------*/
 
 /*************************************************************************
@@ -251,6 +255,9 @@ end procedure.
 
 
 
+// ALL CODE BELOW HERE BORROWED FROM HouseholdMerge.p AND WRITTEN BY STAFF WITH VERMONT SYSTEMS
+// NONE OF THE CODE BELOW HAS BEEN WRITTEN BY MICHAEL RORK
+// IGNORE ALL CODE BELOW THIS LINE FOR PURPOSES OF CODE REVIEW
 
 procedure HouseholdMerge:
 
@@ -261,8 +268,6 @@ procedure HouseholdMerge:
     /*                          VERMONT SYSTEMS, INC.                       */
     /************************************************************************/
     /* ***************************  Definitions  ************************** */
-     
-  
          
     assign 
         SessionID       = SessionID()
@@ -276,42 +281,40 @@ procedure HouseholdMerge:
         ContinueError   = ""
         ModuleList      = {&FullModuleList}.
  
-/*** GO THRU DAILY PROCESSING PROFILES AND GET INTERNAL & MODEL HOUSEHOLDS ***/
-PROFILE-LOOP:
-for each EntityProfile no-lock where 
-    EntityProfile.RecordType = "Daily Processing":
-  
-    InternalHH = ProfileCharTrueDb(EntityProfile.ID, "InternalHousehold").
-  
-    if InternalHH > "" then
-        InternalHHList = UniqueList(InternalHH,InternalHHList,",").
-  
-    /*** GET MODEL HOUSEHOLD LIST ***/
-    do ix = 1 to num-entries(ModuleList):
+    /*** GO THRU DAILY PROCESSING PROFILES AND GET INTERNAL & MODEL HOUSEHOLDS ***/
+    PROFILE-LOOP:
+    for each EntityProfile no-lock where 
+        EntityProfile.RecordType = "Daily Processing":
     
-        ModelHHModuleList = ProfileCharTrueDb(EntityProfile.ID, "ModelHousehold" + entry(ix,ModuleList)).
+        InternalHH = ProfileCharTrueDb(EntityProfile.ID, "InternalHousehold").
     
-        if ModelHHModuleList > "" then
-        do iy = 1 to num-entries(ModelHHModuleList):
-            ModelHHList = UniqueList(entry(iy,ModelHHModuleList), ModelHHList, ",").  
+        if InternalHH > "" then
+            InternalHHList = UniqueList(InternalHH,InternalHHList,",").
+    
+        /*** GET MODEL HOUSEHOLD LIST ***/
+        do ix = 1 to num-entries(ModuleList):
+        
+            ModelHHModuleList = ProfileCharTrueDb(EntityProfile.ID, "ModelHousehold" + entry(ix,ModuleList)).
+        
+            if ModelHHModuleList > "" then
+            do iy = 1 to num-entries(ModelHHModuleList):
+                ModelHHList = UniqueList(entry(iy,ModelHHModuleList), ModelHHList, ",").  
+            end.
         end.
+    end. /* END PROFILE-LOOP */
+
+    for first Account no-lock where Account.EntityNumber = ToHHNumber:
+        mergeoption = "merge".
     end.
-end. /* END PROFILE-LOOP */
 
-  
+    run value(SubAction). 
 
-for first Account no-lock where Account.EntityNumber = ToHHNumber:
-    mergeoption = "merge".
-end.
-
-run value(SubAction). 
-
-if continueerror gt "" then 
-do:
-    SetData("ContinueError","ContinueError").
-        SetData({&UIErrorMessage},continueerror ).
-    return.
-end.  
+    if continueerror gt "" then 
+    do:
+        SetData("ContinueError","ContinueError").
+            SetData({&UIErrorMessage},continueerror ).
+        return.
+    end.  
 
 end procedure.
 
@@ -350,6 +353,7 @@ procedure adjustRelationships:
 
 end procedure.
 
+
 procedure getNewLinkForFamily:
     /*------------------------------------------------------------------------------
      Purpose: It will retrive the newLink(SaLink.Order) 
@@ -369,6 +373,7 @@ procedure getNewLinkForFamily:
 
 end procedure.
 
+
 procedure getNewLinkForTeam:
     /*------------------------------------------------------------------------------
      Purpose: It will retrive the newLink(SaLink.Order) 
@@ -387,6 +392,7 @@ procedure getNewLinkForTeam:
         end. 
      
 end procedure.
+
 
 procedure createPreMerge:
     /*------------------------------------------------------------------------------
