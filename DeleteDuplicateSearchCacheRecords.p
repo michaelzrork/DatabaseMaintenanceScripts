@@ -1,0 +1,367 @@
+/*************************************************************************
+                        PROGRAM NAME AND DESCRIPTION
+*************************************************************************/
+
+&global-define ProgramName "deleteDuplicateSASearchIndexRecords" /* PRINTS IN AUDIT LOG AND USED FOR LOGFILE NAME, DO NOT INCLUDE THE .p OR .r */
+&global-define ProgramDescription "Delete Duplicate SearchCache Records"  /* PRINTS IN AUDIT LOG WHEN INCLUDED AS INPUT PARAMETER */
+    
+ /*----------------------------------------------------------------------
+    Author(s)   : 
+    Created     : 
+    Notes       : 
+  ----------------------------------------------------------------------*/
+
+/*************************************************************************
+                                DEFINITIONS
+*************************************************************************/
+
+{Includes/Framework.i}
+{Includes/BusinessLogic.i}
+
+function ParseList character (inputValue as char) forward.
+function RoundUp returns decimal(dValue as decimal,precision as integer) forward.
+function AddCommas returns character (dValue as decimal) forward.
+
+define stream   ex-port.
+define variable inpfile-num        as integer   no-undo init 1.
+define variable inpfile-loc        as character no-undo init "".
+define variable counter            as integer   no-undo init 0.
+define variable ixLog              as integer   no-undo init 1. 
+define variable logfileDate        as date      no-undo.
+define variable logfileTime        as integer   no-undo.
+define variable LogOnly            as logical   no-undo init false.
+define variable ActivityLogID         as int64     no-undo init 0. 
+define variable ClientCode             as character no-undo init "".
+define variable cLastID            as character no-undo init "".
+define variable LastTable          as character no-undo init "".
+define variable numRecs            as integer   no-undo init 0.
+define variable itemDescription    as character no-undo.
+define variable lastCreatedDate    as datetime  no-undo.
+define variable bufLastCreatedDate as datetime  no-undo.
+
+assign
+    /* TO SET PROGRAM TO 'LOG ONLY' ADD 'LogOnly' ANYWHERE IN THE GLOBAL VARIABLE PROGRAM NAME eg. 'ProgramName_LogOnly' */
+    LogOnly     = if {&ProgramName} matches "*LogOnly*" then true else false // USE THIS VARIABLE TO HALT CHANGES WHEN LOG ONLY eg. 'if not LogOnly then assign'
+    logfileDate = today
+    logfileTime = time.
+    
+find first CustomField no-lock where CustomField.FieldName = "ClientID" no-error no-wait.
+if available CustomField then assign ClientCode = CustomField.FieldValue.
+
+/*************************************************************************
+                                MAIN BLOCK
+*************************************************************************/
+
+/* CREATE LOG FILE FIELD HEADERS */
+/* I LIKE TO INCLUDE AN EXTRA COMMA AT THE END OF THE CSV ROWS BECAUSE THE LAST FIELD HAS EXTRA WHITE SPACE - IT'S JUST A LITTLE CLEANER */
+run put-stream ("Parent ID," +
+    "Parent Table," +
+    "Deleted Record ID," +
+    "Deleted Last Created Date," +
+    "Duplicate Record ID," +
+    "Duplicate Last Created Date," +
+    "Deleted WordIndex," +
+    "Duplicate WordIndex,").
+
+/* CREATE INITIAL AUDIT LOG RECORD */
+run ActivityLog({&ProgramDescription},"Program in Progress","Number of Duplicate Records Deleted So Far: " + addCommas(numRecs),"","","").
+
+for each SearchCache no-lock:
+    assign
+        itemDescription = ""
+        lastCreatedDate = datetime(NameVal("LastCreated",SearchCache.MiscInformation,chr(31),chr(30))).
+    run findDuplicateRecord(SearchCache.ID,SearchCache.ParentRecord,SearchCache.ParentTable).
+end.
+  
+/* CREATE LOG FILE */
+do ixLog = 1 to inpfile-num:
+    if search(sessiontemp() + {&ProgramName} + "_Log" + "_" + ClientCode + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(ixLog) + ".csv") <> ? then 
+        SaveFileToDocuments(sessiontemp() + {&ProgramName} + "_Log" + "_" + ClientCode + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(ixLog) + ".csv", "\Reports\", "", no, yes, yes, "Report").  
+end.
+
+/* UPDATE AUDIT LOG ENTRY WITH FINAL COUNTS */
+run UpdateActivityLog({&ProgramDescription},"Program is Complete; Check Document Center for a log of Records Changed","Number of Duplicate Records Deleted: " + addCommas(numRecs),"","").
+
+/*************************************************************************
+                            INTERNAL PROCEDURES
+*************************************************************************/
+
+/* DELETE DUPLICATE SASEARCHINDEX RECORD */
+procedure findDuplicateRecord:
+    define input parameter inpID as int64 no-undo.
+    define input parameter cParentID as int64 no-undo.
+    define input parameter cParentTable as character no-undo.
+    define buffer bufSearchCache for SearchCache.
+    do for bufSearchCache transaction:
+        for first bufSearchCache no-lock where bufSearchCache.ID <> inpID and bufSearchCache.ParentRecord = cParentID:
+            /*run findDescription(cParentID,cParentTable).*/
+            assign
+                bufLastCreatedDate = datetime(NameVal("LastCreated",SearchCache.MiscInformation,chr(31),chr(30))).
+            if bufLastCreatedDate ge lastCreatedDate then run deleteDuplicateRecord(SearchCache.ID,lastCreatedDate,bufSearchCache.ID,bufLastCreatedDate,bufSearchCache.WordIndex).
+            else run deleteDuplicateRecord(bufSearchCache.ID,bufLastCreatedDate,SearchCache.ID,lastCreatedDate,SearchCache.WordIndex). 
+        end.
+    end.
+end procedure.
+
+// DELETE DUPLICATE SASEARCHINDEX RECORD
+procedure deleteDuplicateRecord:
+    define input parameter inpID as int64 no-undo.
+    define input parameter deletedLastCreatedDate as datetime no-undo.
+    define input parameter dupeID as int64 no-undo.
+    define input parameter dupeLastCreatedDate as datetime no-undo.
+    define input parameter dupeWordIndex as character no-undo.
+    define buffer bufSearchCache for SearchCache.
+    do for bufSearchCache transaction:
+        find first bufSearchCache exclusive-lock where bufSearchCache.ID = inpID no-error no-wait.
+        if available bufSearchCache then 
+        do:
+            /* UPDATE AUDIT LOG WITH LAST TABLE/ID AND CURRENT RECORD COUNTS */ 
+            assign 
+                cLastID   = getString(string(bufSearchCache.ID)) // REPLACE 0 WITH TABLENAME.ID 
+                LastTable = "SearchCache". // REPLACE <TABLE NAME> WITH THE TABLE NAME
+            run UpdateActivityLog({&ProgramDescription},"Program in Progress; Last Record ID - " + getString(lastTable) + ": " + getString(cLastID),"Number of Duplicate Records Deleted So Far: " + addCommas(numRecs),"","").
+            // "Parent ID,Parent Table,Item Description,Deleted Record ID,Deleted Last Created Date,Duplicate Record ID,Duplicate Last Created Date,Deleted WordIndex,Duplicate WordIndex,"
+            run put-stream ("~"" + 
+                string(bufSearchCache.ParentRecord)
+                + "~",~"" +
+                getString(bufSearchCache.ParentTable)
+                + "~",~"" + 
+                getString(string(bufSearchCache.ID))
+                + "~",~"" + 
+                getString(string(deletedLastCreatedDate)) 
+                + "~",~"" + 
+                getString(string(dupeID)) 
+                + "~",~"" + 
+                getString(string(dupeLastCreatedDate)) 
+                + "~",~"" + 
+                getString(bufSearchCache.WordIndex) 
+                + "~",~"" + 
+                getString(dupeWordIndex) 
+                + "~",").
+            assign 
+                numRecs = numRecs + 1.
+            delete bufSearchCache.
+        end.
+    end.
+end.
+
+// FIND PARENT ID DESCRIPTION
+procedure findDescription:
+    define input parameter cParentID as int64 no-undo.
+    define input parameter cParentTable as character no-undo.
+    define buffer bufSearchCache for SearchCache.
+    define variable hBuffer     as handle    no-undo.
+    define variable hQuery      as handle    no-undo.
+    define variable hField      as handle    no-undo.
+    define variable hField2     as handle    no-undo.
+    define variable cFieldValue as character no-undo.
+    define variable cQuery      as character no-undo.
+    
+    /* Create a dynamic buffer for the Parent Table */
+    create buffer hBuffer for table cParentTable.
+    /* Create a dynamic query */
+    create query hQuery.
+    /* Set the buffer to the dynamic query */
+    hQuery:set-buffers(hBuffer).
+    /* Construct dynamic query string to find the first record where ID matches */
+    cQuery = substitute("for each &1 no-lock where &1.ID = &2", cParentTable, cParentID).
+    
+    /* Prepare and open the query */
+    hQuery:query-prepare(cQuery).
+    hQuery:query-open().
+    hQuery:get-first().
+    
+    /* Check if the record was found */
+    if hQuery:query-off-end then 
+    do:
+        message "Record not found." view-as alert-box.
+    end.
+    else 
+    do:
+        if cParentTable = "GRTeeTime" then 
+        do:
+            hField = hBuffer:buffer-field("TeeTimeDate") no-error.
+            hField2 = hBuffer:buffer-field("GolfCourse") no-error.
+            if valid-handle(hField) and valid-handle(hField2) then 
+            do:
+                /* Store the value of ShortDescription */
+                itemDescription = "Tee Time for Golf Course " + string(hField2) + " on " + string(hfield).
+            end.
+        end.
+        else 
+        do:
+            /* Check if the field 'ShortDescription' exists */
+            hField = hBuffer:buffer-field("ShortDescription") no-error.
+            if valid-handle(hField) then 
+            do:
+                /* Store the value of ShortDescription */
+                itemDescription = hField:buffer-value.
+            end.
+            else 
+            do:
+                /* Check if the field 'ShortDescription' exists */
+                hField = hBuffer:buffer-field("Description") no-error.
+                if valid-handle(hField) then 
+                do:
+                    /* Store the value of ShortDescription */
+                    itemDescription = hField:buffer-value.
+                end.
+                else 
+                do:
+                    /* If ShortDescription is not available, try ComboKey */
+                    hField = hBuffer:buffer-field("ComboKey") no-error.
+                    if valid-handle(hField) then 
+                    do:
+                        itemDescription = hField:buffer-value.
+                    end.
+                    do:
+                        /* If ShortDescription is not available, try ComboKey */
+                        hField = hBuffer:buffer-field("ComboKey") no-error.
+                        if valid-handle(hField) then 
+                        do:
+                            itemDescription = hField:buffer-value.
+                        end.    
+                        else 
+                        do:
+                            itemDescription = "No Item Description Found".
+                        end.
+                    end.
+                end.
+            end.
+        end.
+    end.   
+    /* Clean up the dynamic objects */
+    hQuery:query-close().
+    delete object hQuery.
+    delete object hBuffer.
+end procedure.
+
+/* CREATE LOG FILE */
+procedure put-stream:
+    def input parameter inpfile-info as char no-undo.
+    inpfile-loc = sessiontemp() + {&ProgramName} + "_Log" + "_" + ClientCode + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(inpfile-num) + ".csv".
+    output stream ex-port to value(inpfile-loc) append.
+    inpfile-info = inpfile-info + "".
+  
+    put stream ex-port inpfile-info format "X(800)" skip.
+    counter = counter + 1.
+    if counter gt 100000 then 
+    do: 
+        inpfile-num = inpfile-num + 1. 
+        counter = 0.
+    end.
+    output stream ex-port close.
+end procedure.
+
+/* CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY RECORDS WERE CHANGED */
+procedure ActivityLog:
+    define input parameter LogDetail1 as character no-undo.
+    define input parameter LogDetail2 as character no-undo.
+    define input parameter LogDetail3 as character no-undo.
+    define input parameter LogDetail4 as character no-undo.
+    define input parameter LogDetail5 as character no-undo.
+    define buffer BufActivityLog for ActivityLog.
+    do for BufActivityLog transaction:
+        create BufActivityLog.
+        assign
+            BufActivityLog.SourceProgram = {&ProgramName} + ".r"
+            BufActivityLog.LogDate       = today
+            BufActivityLog.LogTime       = time
+            BufActivityLog.UserName      = "SYSTEM"
+            BufActivityLog.Detail1       = LogDetail1
+            BufActivityLog.Detail2       = LogDetail2
+            BufActivityLog.Detail3       = LogDetail3
+            BufActivityLog.Detail4       = LogDetail4
+            BufActivityLog.Detail5       = LogDetail5.
+        /* IF THIS IS THE FIRST AUDIT LOG ENTRY, UPDATE THE ID FIELD */
+        if ActivityLogID = 0 and bufActivityLog.Detail2 = "Program in Progress" then 
+            assign
+                ActivityLogID = BufActivityLog.ID.
+    end.
+end procedure.
+
+/* UPDATE AUDIT LOG STATUS ENTRY */
+procedure UpdateActivityLog:
+    define input parameter LogDetail1 as character no-undo.
+    define input parameter LogDetail2 as character no-undo.
+    define input parameter LogDetail3 as character no-undo.
+    define input parameter LogDetail4 as character no-undo.
+    define input parameter LogDetail5 as character no-undo.
+    define buffer BufActivityLog for ActivityLog.
+    do for BufActivityLog transaction:
+        if ActivityLogID = 0 then return.
+        find first BufActivityLog exclusive-lock where BufActivityLog.ID = ActivityLogID no-error no-wait.
+        if available BufActivityLog then 
+            assign
+                BufActivityLog.LogDate = today
+                BufActivityLog.LogTime = time
+                BufActivityLog.Detail1 = LogDetail1
+                BufActivityLog.Detail2 = LogDetail2
+                BufActivityLog.Detail3 = LogDetail3
+                BufActivityLog.Detail4 = LogDetail4
+                BufActivityLog.Detail5 = LogDetail5.
+    end.
+end procedure.
+
+/*************************************************************************
+                            INTERNAL FUNCTIONS
+*************************************************************************/
+
+/* FUNCTION RETURNS A COMMA SEPARATED LIST FROM CHR(30) SEPARATED LIST IN A SINGLE VALUE */
+function ParseList character (inputValue as char):
+    if index(inputValue,chr(31)) > 0 and index(inputValue,chr(30)) > 0 then 
+        return replace(replace(inputValue,chr(31),": "),chr(30),", ").
+    else if index(inputValue,chr(30)) > 0 and index(inputValue,chr(31)) = 0 then
+            return replace(inputValue,chr(30),": ").
+        else if index(inputValue,chr(30)) = 0 and index(inputValue,chr(31)) > 0 then
+                return replace(inputValue,chr(31),": ").
+            else return inputValue.
+end.
+
+/* FUNCTION RETURNS A DECIMAL ROUNDED UP TO THE PRECISION VALUE */
+function RoundUp returns decimal(dValue as decimal,precision as integer):
+    define variable newValue  as decimal   no-undo.
+    define variable decLoc    as integer   no-undo.
+    define variable tempValue as character no-undo.
+    define var      tempInt   as integer   no-undo.
+    
+    /* IF THE TRUNCATED VALUE MATCHES THE INPUT VALUE, NO ROUNDING IS NECESSARY; RETURN THE ORIGINAL VALUE */
+    if dValue - truncate(dValue,precision) = 0 then
+        return dValue.
+            
+    /* IF THE ORIGINAL VALUE MINUS THE TRUNCATED VALUE LEAVES A REMAINDER THEN ROUND UP */
+    else 
+    do:
+        assign
+            /* FINDS THE LOCATION OF THE DECIMAL SO IT CAN BE ADDED BACK IN LATER */
+            decLoc    = index(string(truncate(dValue,precision)),".")
+            /* TRUNCATES TO THE PRECISION POINT, DROPS THE DECIMAL, CONVERTS TO AN INT, THEN IF NEGATIVE SUBTRACTS ONE, IF POSITIVE ADDS ONE */
+            tempValue = string(integer(replace(string(truncate(dValue,precision)),".","")) + if dValue < 0 then -1 else 1).
+        /* ADDS THE DECIMAL BACK IN AT THE ORIGINAL LOCATION */
+        assign 
+            substring(tempValue,(if decLoc = 0 then length(tempValue) + 1 else decLoc),0) = ".".
+        /* RETURNS THE RESULTING VALUE AS A DECIMAL */ 
+        return decimal(tempValue).
+    end.
+end.
+
+/* FUNCTION RETURNS A NUMBER AS A CHARACTER WITH ADDED COMMAS */
+function AddCommas returns character (dValue as decimal):
+    define variable absValue     as decimal   no-undo. // ABSOLUTE VALUE
+    define variable iValue       as integer   no-undo. // INTEGER VALUE
+    define variable cValue       as character no-undo. // CHARACTER VALUE
+    define variable ix           as integer   no-undo. 
+    define variable decimalValue as character no-undo. // DECIMAL VALUE
+    define variable decLoc       as integer   no-undo. // DECIMAL LOCATION
+    assign
+        absValue     = abs(dValue)
+        decLoc       = index(string(absValue),".")
+        decimalValue = substring(string(absValue),(if decLoc = 0 then length(string(absValue)) + 1 else decLoc))
+        iValue       = truncate(absValue,0)
+        cValue       = string(iValue).
+    do ix = 1 to roundUp(length(string(iValue)) / 3,0) - 1:
+        assign 
+            substring(cValue,length(string(iValue)) - ((ix * 3) - 1),0) = ",".
+    end.
+    return (if dValue < 0 then "-" else "") + cValue + decimalValue.
+end.
