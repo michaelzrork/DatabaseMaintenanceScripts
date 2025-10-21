@@ -40,19 +40,19 @@ assign
 // DISABLES AUTOMATIC VERIFICATION EMAIL PROMPTS WHEN UPDATING THE EMAIL ADDRESSES
 disable triggers for load of EmailContact.
 
-// REMOVE SAHOUSEHOLD EMAIL ADDRESSES
+// REMOVE ACCOUNT EMAIL ADDRESSES
 for each Account no-lock:
-    run removeSAHouseholdEmail(Account.ID).
+    run removeAccountEmail(Account.ID).
 end.
 
-// REMOVE SAPERSON EMAIL ADDRESSES
+// REMOVE MEMBER EMAIL ADDRESSES
 for each Member no-lock:
-    run removeSAPersonEmail(Member.ID).
+    run removeMemberEmail(Member.ID).
 end.
 
-// DELETE SAEMAILADDRESS RECORDS
+// DELETE EMAILCONTACT RECORDS
 for each EmailContact no-lock:
-    run deleteSAEmailAddressRecord(EmailContact.ID).
+    run deleteEmailContactRecord(EmailContact.ID).
 end.
 
 // CREATE AUDIT LOG RECORD
@@ -63,7 +63,7 @@ run ActivityLog.
 *************************************************************************/
 
 // REMOVE THE PERSON EMAIL ADDRESS
-procedure removeSAPersonEmail:
+procedure removeMemberEmail:
     define input parameter inpid as int64 no-undo.
     define buffer bufMember for Member.
     do for bufMember transaction:
@@ -80,7 +80,7 @@ procedure removeSAPersonEmail:
 end. 
 
 // REMOVE THE HOUSEHOLD EMAIL ADDRESS
-procedure removeSAHouseholdEmail:
+procedure removeAccountEmail:
     define input parameter inpid as int64 no-undo.
     define buffer bufAccount for Account.
     do for bufAccount transaction:
@@ -97,7 +97,7 @@ procedure removeSAHouseholdEmail:
 end. 
 
 // DELETE THE EMAIL ADDRESS RECORD
-procedure deleteSAEmailAddressRecord:
+procedure deleteEmailContact:
     define input parameter inpid as int64 no-undo.
     define buffer bufEmailContact for EmailContact.
     do for bufEmailContact transaction:
@@ -106,7 +106,7 @@ procedure deleteSAEmailAddressRecord:
         do:
             // ADD TO NUMBER OF EMAILS DELETED COUNT 
             numEmailsDeleted = numEmailsDeleted + 1.
-            // DELETE THE SAEMAILADDRESS TABLE RECORD
+            // DELETE THE EMAILCONTACT TABLE RECORD
             delete bufEmailContact.
         end.
     end.

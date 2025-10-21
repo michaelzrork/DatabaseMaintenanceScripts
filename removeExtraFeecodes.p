@@ -92,7 +92,7 @@ procedure removeExtraFeecode:
     define variable originalFeecodeList as character no-undo.
     define buffer bufAccount for Account.
     do for bufAccount transaction:
-        find first bufAccount exclusive-lock where bufSAhousehold.ID = inpID no-error no-wait.
+        find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
         assign
             /* SET THE ORIGINAL FEECODE LIST FOR THE LOGFILE */
             originalFeecodeList    = bufAccount.CodeValue

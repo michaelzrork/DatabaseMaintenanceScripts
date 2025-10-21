@@ -86,8 +86,8 @@ end.
 
 // CREATE LOG FILE
 do ix = 1 to inpfile-num:
-    if search(sessiontemp() + "SADetailRecordsUpdated" + string(ix) + ".csv") <> ? then 
-        SaveFileToDocuments(sessiontemp() + "SADetailRecordsUpdated" + string(ix) + ".csv", "\Reports\", "", no, yes, yes, "Report").  
+    if search(sessiontemp() + "TransactionDetailRecordsUpdated" + string(ix) + ".csv") <> ? then 
+        SaveFileToDocuments(sessiontemp() + "TransactionDetailRecordsUpdated" + string(ix) + ".csv", "\Reports\", "", no, yes, yes, "Report").  
 end.
 
 // CREATE AUDIT LOG RECORD
@@ -105,11 +105,11 @@ procedure fixLocationCode:
         find bufTransactionDetail exclusive-lock where bufTransactionDetail.ID = inpid no-error no-wait.
         if available bufTransactionDetail then 
         do:
-            // JUST ONE COUNT PER SADETAIL RECOD
+            // JUST ONE COUNT PER TRANSACTIONDETAIL RECOD
             numRecs = numRecs + 1.
             // LOG ORIGINAL VALUES
             run put-stream ("~"" + string(BufTransactionDetail.ID) + "~",~"" + string(bufTransactionDetail.ItemLocationCode) + "~",~"" + string(bufTransactionDetail.TransactionLocationCode) + "~",~"" + string(bufTransactionDetail.FileLinkCode2) + "~",~"" + string(bufTransactionDetail.FileLinkCode4) + "~",").
-            // LOOP THROUGH LOCATION CODES AND UPDATE SADETAIL RECORD FIELDS
+            // LOOP THROUGH LOCATION CODES AND UPDATE TRANSACTIONDETAIL RECORD FIELDS
             codeLoop:
             do codeCount = 1 to num-entries(oldLocationCodeList):
                 // CREATE A TEMP OLD CODE AND NEW CODE TO CHECK FIELDS AGAINST
@@ -133,7 +133,7 @@ end procedure.
 // CREATE LOG FILE
 procedure put-stream:
     def input parameter inpfile-info as char no-undo.
-    inpfile-loc = sessiontemp() + "SADetailRecordsUpdated" + string(inpfile-num) + ".csv".
+    inpfile-loc = sessiontemp() + "TransactionDetailRecordsUpdated" + string(inpfile-num) + ".csv".
     output stream ex-port to value(inpfile-loc) append.
     inpfile-info = inpfile-info + "".
   
@@ -147,7 +147,7 @@ procedure put-stream:
     output stream ex-port close.
 end procedure.
 
-// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY SADETAIL RECORDS WERE CHANGED
+// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY TRANSACTIONDETAIL RECORDS WERE CHANGED
 procedure ActivityLog:
     def buffer BufActivityLog for ActivityLog.
     do for BufActivityLog transaction:

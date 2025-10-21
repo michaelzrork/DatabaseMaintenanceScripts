@@ -48,7 +48,7 @@ for each Relationship no-lock where Relationship.Primary = true and Relationship
   for first Member no-lock where Member.ID = Relationship.ChildTableID: 
     if Relationship.Relationship ne primaryGuardianCode then run fixRelationshipCode(Relationship.ID).
   end.
-  if not available Member then run DeleteSALink(Relationship.ID). //If No Member Found remove record entirely, it is a dead link
+  if not available Member then run DeleteRelationship(Relationship.ID). //If No Member Found remove record entirely, it is a dead link
 end.
 
 do ix = 1 to inpfile-num:
@@ -73,7 +73,7 @@ procedure fixRelationshipCode:
     end. // do for
 end procedure. // fixRelationshipCode
 
-procedure DeleteSALink:
+procedure DeleteRelationship:
     define input parameter inpid as int64.
     define buffer BufRelationship for Relationship.
     do for BufRelationship transaction:
@@ -84,7 +84,7 @@ procedure DeleteSALink:
                 delete BufRelationship.
             end.
     end. // do for
-end procedure. // DeleteSALink
+end procedure. // DeleteRelationship
 
 procedure put-stream:
   def input parameter inpfile-info as char no-undo.

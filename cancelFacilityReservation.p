@@ -99,13 +99,13 @@ procedure PurgeTransactionDetail:
   
     run purgeSAAnswer(inpid).
     for each Charge no-lock where Charge.ParentRecord = inpid:
-        for each SAFEEHISTORY no-lock where SAFEEHISTORY.ParentRecord = SAFEE.ID:
-            run deleteSAFeeHistory (ChargeHistory.id).
+        for each CHARGEHISTORY no-lock where CHARGEHISTORY.ParentRecord = CHARGE.ID:
+            run deleteChargeHistory (ChargeHistory.id).
         end.
         for each FilterCriteria no-lock where FilterCriteria.ParentRecord = Charge.ID:
-            run Business/DeleteSACriteria.p (FilterCriteria.id).
+            run Business/DeleteFilter.p  /* External filter deletion service */ (FilterCriteria.id).
         end.
-        run deleteSAFee (Charge.id).
+        run deleteCharge (Charge.id).
     end.
     for each ScheduleConflict no-lock where ScheduleConflict.TransactionDetailID = inpid:
         run deleteSAConflict (ScheduleConflict.id).
@@ -116,7 +116,7 @@ procedure PurgeTransactionDetail:
     
 end procedure.
 
-procedure purgeSAAnswer:
+procedure purgeResponse:
     def input parameter inpid as int64 no-undo. 
     for each QuestionResponse no-lock where QuestionResponse.DetailLinkID = inpid: 
         run deleteAnswer (QuestionResponse.id).   
@@ -132,7 +132,7 @@ procedure deleteAnswer:
     end.
 end. 
 
-procedure deleteSAFeeHistory:
+procedure deleteChargeHistory:
     def input parameter inpid as int64 no-undo.
     def buffer buf1 for ChargeHistory.
     do for buf1 transaction:
@@ -141,7 +141,7 @@ procedure deleteSAFeeHistory:
     end.
 end procedure.
 
-procedure DeleteSAFee:
+procedure deleteCharge:
     def input parameter inpid as int64 no-undo.
     def buffer buf1 for safee .
     do for buf1 transaction:
@@ -150,7 +150,7 @@ procedure DeleteSAFee:
     end.
 end procedure.
 
-procedure deleteSAConflict:
+procedure deleteConflict:
     def input parameter inpid as int64 no-undo.
     def buffer buf1 for ScheduleConflict.
     do for buf1 transaction:
@@ -159,7 +159,7 @@ procedure deleteSAConflict:
     end.
 end procedure.
 
-procedure deleteSABillingDetail:
+procedure deleteBillingStatement:
     def input parameter inpid as int64 no-undo.
     def buffer buf1 for InvoiceLineItem.
     do for buf1 transaction:

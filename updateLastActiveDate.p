@@ -64,7 +64,7 @@ run ActivityLog.
 /* UPDATE LAST ACTIVE DATE */
 procedure updateLastActiveDate:
     define input parameter inpID as int64 no-undo.
-    define buffer bufSAhousehold for Account.
+    define buffer bufAccount for Account.
     do for bufAccount transaction:
         find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
         if available bufAccount then assign

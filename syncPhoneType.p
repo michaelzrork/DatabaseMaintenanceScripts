@@ -94,7 +94,7 @@ procedure setHHPhoneType:
     do for bufAccount transaction:
         find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
         if available bufAccount then assign
-                bufSAhousehold.PrimaryPhoneType = newPhoneType
+                bufAccount.PrimaryPhoneType = newPhoneType
                 numHHPhoneTypeAdded             = numHHPhoneTypeAdded + 1.
     end.
 end.

@@ -1,26 +1,26 @@
 /*------------------------------------------------------------------------
-    File        : syncHHEmailtoPrimaryGuardian.p
-    Purpose     : 
+    File        : syncAccountEmailtoPrimaryGuardian.p
+    Purpose     :
 
-    Syntax      : 
+    Syntax      :
 
-    Description : Sync Household emails to the Primary Guardian record
+    Description : Sync account emails to the primary guardian member record
 
     Author(s)   : michaelzr
     Created     : 4/19/2024
     Notes       : 8/12/2024 - Changed to opt in; also confirmed that because triggers are not disabled the WebUserName.EmailAddress is getting updated
                             - Could disable triggers and update the WebUserName.EmailAddress field manually if we wanted to
-                            - Also confirmed that the EmailContact record for the Household is getting updated by the trigger, despite not being updated in the quickie
-                            - Changes in Household email record are to sync things like Verified and Optin status 
+                            - Also confirmed that the EmailContact record for the Account is getting updated by the trigger, despite not being updated in the script
+                            - Changes in Account email record are to sync things like Verified and Optin status
                             - Adjusted logs so that records without email address now read "No Email Address"
                             - If used as a post update step, we probably don't need the logfile stuff, but keeping it here in case it's useful
-                  8/30/2024 - The logic on this program is that since the bug that got emails out of sync was from the HH side when deleting the email or changing it to a
-                              non-valid email address that it would make sense to select the HH email as the email address to use for syncing; because if they deleted the
-                              email from HH and it didn't delete from FM, then we'd want to delete the email from FM, and if they edited the email in HH, then we'd want FM
+                  8/30/2024 - The logic on this program is that since the bug that got emails out of sync was from the Account side when deleting the email or changing it to a
+                              non-valid email address that it would make sense to select the Account email as the email address to use for syncing; because if they deleted the
+                              email from Account and it didn't delete from Member, then we'd want to delete the email from Member, and if they edited the email in Account, then we'd want Member
                               to match (even if it's a typo and bad email address, but that's a different conversation)
-                            - This quickie does not disable triggers, but instead sets the updated emails to verified automatically; this could be updated to sync the
-                              verification status of the HH email address instead, which should be a fairly easy change to add other fields that need to get updated,
-                              disable triggers, and sync the existing HH email address data
+                            - This script does not disable triggers, but instead sets the updated emails to verified automatically; this could be updated to sync the
+                              verification status of the Account email address instead, which should be a fairly easy change to add other fields that need to get updated,
+                              disable triggers, and sync the existing Account email address data
   ----------------------------------------------------------------------*/
 
 /*************************************************************************
@@ -62,13 +62,13 @@ assign
 *************************************************************************/
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Record ID,Table,SAPeson.ID,First Name,Last Name,Original Member Email Address,New Email from Account,").
+run put-stream ("Record ID,Table,Member.ID,First Name,Last Name,Original Member Email Address,New Email from Account,").
 
-// SYNC SAPERSON EMAIL WITH SAHOUSEHOLD IF OUT OF SYNC
+// SYNC MEMBER EMAIL WITH ACCOUNT IF OUT OF SYNC
 for each Relationship no-lock where Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
     find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
     if available Account then find first Member no-lock where Member.ID = Relationship.ChildTableID no-error no-wait.
-    if available Member and Member.PrimaryEmailAddress <> Account.PrimaryEmailAddress then run syncHouseholdEmail(Account.ID,Account.PrimaryEmailAddress,Member.ID). 
+    if available Member and Member.PrimaryEmailAddress <> Account.PrimaryEmailAddress then run syncAccountEmail(Account.ID,Account.PrimaryEmailAddress,Member.ID). 
 end.
 
   
@@ -85,53 +85,53 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// SYNC SAHOUSEHOLD EMAIL TO SAPERSON EMAIL
-procedure syncHouseholdEmail:
-    define input parameter hhID as int64 no-undo.
-    define input parameter householdEmail as character no-undo.
-    define input parameter fmID as int64 no-undo.
+// SYNC ACCOUNT EMAIL TO MEMBER EMAIL
+procedure syncAccountEmail:
+    define input parameter accountID as int64 no-undo.
+    define input parameter accountEmail as character no-undo.
+    define input parameter memberID as int64 no-undo.
     define variable dtNow as datetime no-undo.
     define buffer bufMember       for Member.
     define buffer bufEmailContact for EmailContact.
     do for bufMember transaction:
-        // SET SAPERSON EMAIL ADDRESS
-        find first bufMember exclusive-lock where bufMember.ID = fmID no-error no-wait.
-        if available bufMember then 
+        // SET MEMBER EMAIL ADDRESS
+        find first bufMember exclusive-lock where bufMember.ID = memberID no-error no-wait.
+        if available bufMember then
         do:
-            run put-stream (string(bufMember.ID) + "," + "Member" + "," + string(fmID) + "," + replace(bufMember.FirstName,",","") + "," + replace(bufMember.LastName,",","") + "," + (if bufMember.PrimaryEmailAddress = "" or bufMember.PrimaryEmailAddress = ? then "No Member Email Address" else bufMember.PrimaryEmailAddress) + "," + (if householdEmail = "" or householdEmail = ? then "No Account Email Address" else householdEmail) + ",").
-            assign 
+            run put-stream (string(bufMember.ID) + "," + "Member" + "," + string(memberID) + "," + replace(bufMember.FirstName,",","") + "," + replace(bufMember.LastName,",","") + "," + (if bufMember.PrimaryEmailAddress = "" or bufMember.PrimaryEmailAddress = ? then "No Member Email Address" else bufMember.PrimaryEmailAddress) + "," + (if accountEmail = "" or accountEmail = ? then "No Account Email Address" else accountEmail) + ",").
+            assign
                 personRecs                      = personRecs + 1
-                bufMember.PrimaryEmailAddress = householdEmail.
-        
-            // UPDATE SAEMAILADDRESS RECORD
-            for first bufEmailContact exclusive-lock where bufEmailContact.ParentTable = "Member" and bufEmailContact.PrimaryEmailAddress = true and bufEmailContact.ParentRecord = fmID:
-                if householdEmail = "" then 
+                bufMember.PrimaryEmailAddress = accountEmail.
+
+            // UPDATE EMAILCONTACT RECORD
+            for first bufEmailContact exclusive-lock where bufEmailContact.ParentTable = "Member" and bufEmailContact.PrimaryEmailAddress = true and bufEmailContact.ParentRecord = memberID:
+                if accountEmail = "" then
                 do:
-                    run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(fmID) + "," + replace(bufMember.FirstName,",","") + "," + replace(bufMember.LastName,",","") + "," + bufEmailContact.EmailAddress + "," + "Removed" + ",").
-                    assign 
+                    run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(memberID) + "," + replace(bufMember.FirstName,",","") + "," + replace(bufMember.LastName,",","") + "," + bufEmailContact.EmailAddress + "," + "Removed" + ",").
+                    assign
                         deletedEmailRecs = deletedEmailRecs + 1.
                     delete bufEmailContact.
                 end.
-                else 
+                else
                 do:
-                    run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(fmID) + "," + replace(bufMember.FirstName,",","") + "," + replace(bufMember.LastName,",","") + "," + bufEmailContact.EmailAddress + "," + householdEmail + ",").
+                    run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(memberID) + "," + replace(bufMember.FirstName,",","") + "," + replace(bufMember.LastName,",","") + "," + bufEmailContact.EmailAddress + "," + accountEmail + ",").
                     assign
                         emailRecsUpdated                       = emailRecsUpdated + 1
                         dtNow                                  = now
-                        bufEmailContact.EmailAddress         = householdEmail
+                        bufEmailContact.EmailAddress         = accountEmail
                         bufEmailContact.Verified             = yes
                         bufEmailContact.LastVerifiedDateTime = dtNow
                         bufEmailContact.OptIn                = yes
                         bufEmailContact.VerificationSentDate = dtNow.
                 end.
             end.
-            if not available bufEmailContact and householdEmail <> "" then run createSAEmailAddress(bufMember.ID,"Member",householdEmail,fmID,bufMember.FirstName,bufMember.LastName).
+            if not available bufEmailContact and accountEmail <> "" then run createEmailContact(bufMember.ID,"Member",accountEmail,memberID,bufMember.FirstName,bufMember.LastName).
         end.
     end.
 end.
 
-// CREATE MISSING SAEMAILADDRESS RECORDS
-procedure createSAEmailaddress:
+// CREATE MISSING EMAILCONTACT RECORDS
+procedure createEmailContact:
     define input parameter i64ParentID as int64 no-undo.
     define input parameter cParentTable as character no-undo.
     define input parameter cEmailAddress as character no-undo.

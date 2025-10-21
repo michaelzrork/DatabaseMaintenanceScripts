@@ -57,7 +57,7 @@ assign
 // FINISHING THE LOGIC FIRST - FIXING THE FIRST RUN OF RECORDS TO MATCH LOGIC OF UPDATED VERSION
 // CONSIDER CHANGES FOR UPDATING TO V3
 
-{Includes/SAFeeHistStatusList.i}
+{Includes/ChargeHistoryStatusList.i}
 
 // CREATE LOG FILE FIELDS
 run put-stream ("Household Number,ChargeHistory.ID,ChargeHistory.RecordStatus,ChargeHistory.ReceiptNumber,ChargeHistory.ParentTable,ChargeHistory.ParentRecord,Charge.Description,Charge.FeeGroupCode,Charge.ReceiptNumber,Charge.RecordStatus,Charge.InstallmentBillingOption,Charge.ParentTable,Charge.ParentRecord,TransactionDetail.Description,TransactionDetail.ContractID,Agreement.ShortDescription").
@@ -68,7 +68,7 @@ do ix = 1 to num-entries(saFeeIDList):
         find first TransactionDetail no-lock where TransactionDetail.ID = Charge.ParentRecord no-error no-wait.
         if available TransactionDetail then find first Agreement no-lock where Agreement.ID = TransactionDetail.ContractID no-error no-wait.
         for each ChargeHistory no-lock where ChargeHistory.ParentRecord = Charge.ID and lookup(ChargeHistory.RecordStatus,"Paid,Billed,Cancelled,Accrual") = 0:
-            run deleteSAFeeHistory(ChargeHistory.ID).
+            run deleteChargeHistory(ChargeHistory.ID).
             if lookup(Charge.RecordStatus,"Charge,Reset") > 0 then run updateSAFee(Charge.ID).
         end.
     end.
@@ -88,7 +88,7 @@ run ActivityLog.
 *************************************************************************/ 
 
 // DELETE PENDING FEE HISTORY RECORD
-procedure deleteSAFeeHistory:
+procedure deleteChargeHistory:
     define input parameter inpID as int64 no-undo.
     define buffer bufChargeHistory for ChargeHistory.
     do for bufChargeHistory transaction:
@@ -123,7 +123,7 @@ procedure deleteRelatedFees:
 end procedure.
 
 // UPDATE FEE
-procedure updateSAFee:
+procedure updateCharge:
     define input parameter inpID as int64 no-undo.
     define buffer bufCharge for Charge.
     do for bufCharge transaction:

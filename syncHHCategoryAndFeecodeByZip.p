@@ -182,7 +182,7 @@ for each Account no-lock:
         /* IF ANOTHER ACTIVE, RESIDENT HH IS FOUND, SKIP THIS FAMILY MEMBER */
         if hhCheck = yes then next FM-loop.
         
-        /* FIND SAPERSON RECORD TO CHECK CATEGORY AND FEE CODES */
+        /* FIND MEMBER RECORD TO CHECK CATEGORY AND FEE CODES */
         find first Member no-lock where Member.ID = Relationship.ChildTableID no-error no-wait.
         if available Member then 
         do:

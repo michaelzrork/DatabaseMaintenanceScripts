@@ -114,9 +114,9 @@ run put-stream (
     "Charge.ParentRecord," +
     "Charge.CloneID,").
 
-/* FIND EVERY SAFEEHISTORY RECORD THAT IS CURRENTLY IN PENDING STATUS OR THAT HAS BEEN IN PENDING STATUS THAT WAS NOT A PRE-PAID BILL */
+/* FIND EVERY CHARGEHISTORY RECORD THAT IS CURRENTLY IN PENDING STATUS OR THAT HAS BEEN IN PENDING STATUS THAT WAS NOT A PRE-PAID BILL */
 feehist-loop:
-for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and (ChargeHistory.recordstatus = "Pending" or (index(SAFeeHIstory.notes,"Pending Fees") > 0 and index(ChargeHistory.MiscInformation,"OriginalReceipt") > 0)) and ChargeHistory.RecordStatus <> "Billed":
+for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and (ChargeHistory.recordstatus = "Pending" or (index(ChargeHistory.notes,"Pending Fees") > 0 and index(ChargeHistory.MiscInformation,"OriginalReceipt") > 0)) and ChargeHistory.RecordStatus <> "Billed":
     
     /* RESET VARIABLES */
     assign
@@ -140,11 +140,11 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
         xCloneID           = 0
         NoteValue          = "".
     
-    /* ONLY MOVE ON IF THE SAFEE DOES NOT HAVE THE DUE OPTION SET */
+    /* ONLY MOVE ON IF THE CHARGE DOES NOT HAVE THE DUE OPTION SET */
     for first Charge no-lock where Charge.ID = ChargeHistory.ParentRecord:
         if Charge.DueOption <> "" and Charge.DueOption <> "Not Applicable" then next feehist-loop.
         
-        /* SET SAFEE VARIABLES */
+        /* SET CHARGE VARIABLES */
         assign
             FeeID            = Charge.ID
             FeeLogDate       = Charge.LogDate
@@ -161,7 +161,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
         for first TransactionDetail no-lock where TransactionDetail.ID = Charge.ParentRecord:
             if not TransactionDetail.Complete then next feehist-loop.
             
-            /* SET SADETAIL VARIABLES */
+            /* SET TRANSACTIONDETAIL VARIABLES */
             assign
                 DetailID           = TransactionDetail.ID
                 DetailReceiptList  = TransactionDetail.ReceiptList
@@ -172,7 +172,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
                 DeleteFeeHist      = true
                 NoteValue          = "ChargeHistory Deleted; Charge and TransactionDetail Records Found".
                 
-            /* ADD SADETAIL RECORD TO TEMP TABLE TO BE RECALCULATED LATER */
+            /* ADD TRANSACTIONDETAIL RECORD TO TEMP TABLE TO BE RECALCULATED LATER */
             find first ttDetail no-lock where ttDetail.ID = TransactionDetail.ID no-error.
             if not available ttDetail then 
             do:
@@ -184,7 +184,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
         
         if not available TransactionDetail then 
         do:
-            /* SET MISSING SADETAIL VARIABLES */
+            /* SET MISSING TRANSACTIONDETAIL VARIABLES */
             assign
                 DetailID           = Charge.ParentRecord
                 DetailReceiptList  = "N/A"
@@ -200,7 +200,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
                     DeleteFeeHist = true
                     NoteValue     = "ChargeHistory Deleted; Charge Record Found, TransactionDetail Record Locked".
                 
-                /* ADD SADETAIL RECORD TO TEMP TABLE TO BE RECALCULATED LATER */
+                /* ADD TRANSACTIONDETAIL RECORD TO TEMP TABLE TO BE RECALCULATED LATER */
                 find first ttDetail no-lock where ttDetail.ID = Charge.ParentRecord no-error.
                 if not available ttDetail then 
                 do:
@@ -210,7 +210,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
                 end.
             end.
             
-            /* IF SADETAIL NOT AVAILABLE AND NOT LOCKED, DELETE THE SAFEEHISTORY RECORD */
+            /* IF TRANSACTIONDETAIL NOT AVAILABLE AND NOT LOCKED, DELETE THE CHARGEHISTORY RECORD */
             else
             do:
                 assign 
@@ -220,16 +220,16 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
             end.
         end.
         
-        /* FIND ANY OTHER FEE HISTORY RECORD LINKED TO THE SAME PARENT ID THAT MIGHT BE LEGITIMATE AND SKIP ADDING THE SAFEE TO THE LIST TO DELETE IF SO */
+        /* FIND ANY OTHER FEE HISTORY RECORD LINKED TO THE SAME PARENT ID THAT MIGHT BE LEGITIMATE AND SKIP ADDING THE CHARGE TO THE LIST TO DELETE IF SO */
         for each bufFeeHist no-lock where bufFeeHist.ID <> ChargeHistory.ID and bufFeeHist.ParentRecord = ChargeHistory.ParentRecord and bufFeeHist.RecordStatus <> "Pending" and index(bufFeeHist.MiscInformation,"OriginalReceipt") = 0  and index(bufFeeHist.notes,"Pending Fees") = 0:
             assign
                 NumRelatedFeeHist = NumRelatedFeeHist + 1
                 DeleteFee         = false.       
             /* ADD FEE HISTORY RECORD TO LOG FOR REVIEW */
-            run deleteSAFeeHistory(bufFeeHist.ID,"Additonal ChargeHistory Records Found; Charge Record Skiped",no).
+            run deleteChargeHistory(bufFeeHist.ID,"Additonal ChargeHistory Records Found; Charge Record Skiped",no).
         end.
         
-        /* IF NO ADDITIONAL SAFEEHISTORY RECORDS WERE FOUND THAT ARE/WERE NOT PENDING, DELETE THE SAFEE RECORD AS WELL */
+        /* IF NO ADDITIONAL CHARGEHISTORY RECORDS WERE FOUND THAT ARE/WERE NOT PENDING, DELETE THE CHARGE RECORD AS WELL */
         if DeleteFee then 
         do:
             /* CHECK TO SEE IF WE'VE ALREADY LOGGED THE FEE TO BE DELETED - WE DON'T NEED TO TRY TO DELETE IT TWICE */
@@ -242,31 +242,31 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
             end.
         end.
         
-        /* IF ADDITIONAL SAFEEHISTORY RECORDS WERE FOUND, COUNT THE SAFEE AS SKIPPED */
+        /* IF ADDITIONAL CHARGEHISTORY RECORDS WERE FOUND, COUNT THE CHARGE AS SKIPPED */
         /* THIS IS ALSO WHERE WE MIGHT TRY TO CHECK THE BALANCE AND DECIDE WHAT TO DO IF THE BALANCE DROPS BELOW ZERO */
         else 
         do:
             assign 
                 FeeSkipped = FeeSkipped + 1.
-        /*            // ADD DELETE SAFEEHISTORY WITH UNDO HERE, THEN RUN THE FEE CALC                                                          */
+        /*            // ADD DELETE CHARGEHISTORY WITH UNDO HERE, THEN RUN THE FEE CALC                                                          */
         /*            /* CHECK THE BALANCE */                                                                                                   */
         /*            TotalDue   = 0.                                                                                                           */
         /*            find first TransactionDetail exclusive-lock where TransactionDetail.ID = ttDetail.ID no-error.                                              */
-        /*            run Business/SADetailFeeCalc.p ("TransactionDetail", "TotalDue", ?, "", "", TransactionDetail.ID, output TotalDue).                         */
+        /*            run Business/CalculateTransactionTotal.p  /* External calculation service */ ("TransactionDetail", "TotalDue", ?, "", "", TransactionDetail.ID, output TotalDue).                         */
         /*            // UNDO THE DELETED FEE HERE                                                                                              */
         /*            if TotalDue < 0 then                                                                                                      */
         /*            do:                                                                                                                       */
-        /*                run deleteSAFeeHistory(bufFeeHist.ID,"ChargeHistory Record Not Deleted; Would cause balance due to drop below 0",no).*/
+        /*                run deleteChargeHistory(bufFeeHist.ID,"ChargeHistory Record Not Deleted; Would cause balance due to drop below 0",no).*/
         /*                next feehist-loop.                                                                                                    */
         /*            end.                                                                                                                      */
         end.
     
     end.
    
-    /* IF THE PARENT ID OF THE SAFEEHISTORY RECORD DOESN'T FIND AN SAFEE RECORD, CHECK TO SEE IF IT'S AN SADETAIL ID */
+    /* IF THE PARENT ID OF THE CHARGEHISTORY RECORD DOESN'T FIND AN CHARGE RECORD, CHECK TO SEE IF IT'S AN TRANSACTIONDETAIL ID */
     if not available Charge then 
     do:
-        /* ASSIGN MISSING SAFEE VARIABLES */
+        /* ASSIGN MISSING CHARGE VARIABLES */
         assign
             FeeID              = 0
             FeeLogDate         = ?
@@ -285,7 +285,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
             DetailRecordStatus = "N/A"
             cModule            = "N/A".
             
-        /* IF SAFEE LOCKED, SKIP DELETING THE SAFEEHISTORY RECORD */
+        /* IF CHARGE LOCKED, SKIP DELETING THE CHARGEHISTORY RECORD */
         if locked Charge then 
         do:
             assign
@@ -294,12 +294,12 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
                 NoteValue     = "ChargeHistory Skipped; Charge Record Locked".
         end.
         
-        /* IF NOT AVAILABLE SAFEE AND NOT LOCKED, CHECK SAFEEHISTORY PARENT ID AGAINST SADETAIL */
+        /* IF NOT AVAILABLE CHARGE AND NOT LOCKED, CHECK CHARGEHISTORY PARENT ID AGAINST TRANSACTIONDETAIL */
         else 
         do:
             find first TransactionDetail no-lock where TransactionDetail.ID = ChargeHistory.ParentRecord no-error.
         
-            /* IF SADETAIL FOUND LOG FEE HISTORY TO REVIEW, BUT DON'T DELETE IT */
+            /* IF TRANSACTIONDETAIL FOUND LOG FEE HISTORY TO REVIEW, BUT DON'T DELETE IT */
             if available TransactionDetail then 
             do:
                 assign 
@@ -316,7 +316,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
         
             if not available TransactionDetail then 
             do:        
-                /* IF SADETAIL RECORD FOUND, BUT LOCKED, LOG IT TO REVIEW LATER AND DON'T DELETE IT */
+                /* IF TRANSACTIONDETAIL RECORD FOUND, BUT LOCKED, LOG IT TO REVIEW LATER AND DON'T DELETE IT */
                 if locked TransactionDetail then 
                 do:
                     assign
@@ -326,7 +326,7 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
                         NoteValue     = "ChargeHistory Skipped; No Charge Record Found, TransactionDetail Record Locked".
                 end.
                 
-                /* IF SADETAIL RECORD NOT FOUND, DELETE SAFEEHISTORY */
+                /* IF TRANSACTIONDETAIL RECORD NOT FOUND, DELETE CHARGEHISTORY */
                 else
                 do:
                     assign 
@@ -340,26 +340,26 @@ for each ChargeHistory no-lock where ChargeHistory.paymenthousehold = 80082 and 
         end.
     end.
 
-    run deleteSAFeeHistory(ChargeHistory.ID,NoteValue,DeleteFeeHist).
+    run deleteChargeHistory(ChargeHistory.ID,NoteValue,DeleteFeeHist).
      
     run UpdateActivityLog({&ProgramDescription},"Program in Progress","Number of ChargeHistory Records Deleted So Far: " + string(FeeHistDeleted) + "; Skipped So Far: " + string(FeeHistSkipped),"Number of Charge Records Deleted So Far: " + string(FeesDeleted) + "; Skipped So Far: " + string(FeeSkipped),"Number of Related ChargeHistory Records So Far: " + string(NumRelatedFeeHist) + "; Number of Missing Charge Records So Far: " + string(NumMissingFee) + ", Missing TransactionDetail Records So Far: " + string(NumMissingDetail)).  
        
 end.
 
-/* ONCE DONE WITH THE SAFEEHISTORY RECORDS, DELETE THE CORRESPONDING SAFEE RECORDS */
+/* ONCE DONE WITH THE CHARGEHISTORY RECORDS, DELETE THE CORRESPONDING CHARGE RECORDS */
 for each ttCharge no-lock:
     find first Charge no-lock where Charge.ID = ttCharge.ID no-error.
-    if available Charge then run deleteSAFee(Charge.ID).
+    if available Charge then run deleteCharge(Charge.ID).
     run UpdateActivityLog({&ProgramDescription},"Program in Progress","Number of ChargeHistory Records Deleted So Far: " + string(FeeHistDeleted) + "; Skipped So Far: " + string(FeeHistSkipped),"Number of Charge Records Deleted So Far: " + string(FeesDeleted) + "; Skipped So Far: " + string(FeeSkipped),"Number of Related ChargeHistory Records So Far: " + string(NumRelatedFeeHist) + "; Number of Missing Charge Records So Far: " + string(NumMissingFee) + ", Missing TransactionDetail Records So Far: " + string(NumMissingDetail)).
 end.
 
-/* RECALC SADETAIL FULLY PAID STATUS */
+/* RECALC TRANSACTIONDETAIL FULLY PAID STATUS */
 if not LogOnly then 
     for each ttDetail no-lock:
         assign 
             TotalDue = 0.
         find first TransactionDetail exclusive-lock where TransactionDetail.ID = ttDetail.ID no-error.
-        run Business/SADetailFeeCalc.p ("TransactionDetail", "TotalDue", ?, "", "", TransactionDetail.ID, output TotalDue).  
+        run Business/CalculateTransactionTotal.p  /* External calculation service */ ("TransactionDetail", "TotalDue", ?, "", "", TransactionDetail.ID, output TotalDue).  
         assign 
             TransactionDetail.FullyPaid = if totalDue gt 0 then false else true.
     end.
@@ -378,7 +378,7 @@ run UpdateActivityLog({&ProgramDescription},"Program Complete; Check Document Ce
 *************************************************************************/
     
 /* DELETE FEE HISTORY */
-procedure deleteSAFeeHistory:
+procedure deleteChargeHistory:
     define input parameter inpID as int64 no-undo.
     define input parameter LogNotes as character no-undo.
     define input parameter DeleteFeeHistory as logical no-undo.

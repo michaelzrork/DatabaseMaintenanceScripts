@@ -89,7 +89,7 @@ run ActivityLog.
 *************************************************************************/
 
 // DELETE CROSS REFERENCE
-procedure deleteSACrossReference:
+procedure deleteEntityLink:
     define input parameter inpid as int64.
     define buffer bufEntityLink for EntityLink.
     do for bufEntityLink transaction:

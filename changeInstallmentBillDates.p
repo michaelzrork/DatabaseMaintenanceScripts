@@ -50,7 +50,7 @@ assign
 // CREATE LOG FILE FIELDS
 run put-stream ("Table,RecordID,HH#,Receipt#,OriginalBillDate,NewBillDate").
 
-// LOOP THROUGH SAFEEHISTORY FOR FUTURE BILLS SET TO THE 2ND
+// LOOP THROUGH CHARGEHISTORY FOR FUTURE BILLS SET TO THE 2ND
 // ORIGINALY WRITTEN TO TARGET SPECIFIC FEES, BUT SINCE THIS CUSTOMER NEEDS ANY BILL WITH THE 2ND, I REMOVED THAT CHECK
 // THE CHECK CAN BE REINSTATED AND UPDATED TO CHECK A LIST OF FEES IF NECESSARY 
 for each ChargeHistory no-lock where lookup(ChargeHistory.RecordStatus,"Unbilled,Unbilled Adjusted,Suspended") > 0 /* and ChargeHistory.ParentRecord = feeID */ and int(substring(string(ChargeHistory.BillDate),4,2)) = originalDay:
@@ -106,7 +106,7 @@ procedure put-stream:
 end procedure.
 
 
-// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY SADETAIL RECORDS WERE CHANGED
+// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY TRANSACTIONDETAIL RECORDS WERE CHANGED
 procedure ActivityLog:
     def buffer BufActivityLog for ActivityLog.
     do for BufActivityLog transaction:

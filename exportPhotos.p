@@ -49,7 +49,7 @@ for each Member no-lock where Member.PhotoIDNumber <> 0:
         personName = replace(personName,entry(ixSpecialCharList,specialCharacterList),"").
     end.
     // ORIGINAL METHOD
-    // USING THIS WILL ALLOW YOU TO CHANGE THE FILE NAME ON EXPORT TO INCLUDE THE SAPERSON ID AND/OR NAME
+    // USING THIS WILL ALLOW YOU TO CHANGE THE FILE NAME ON EXPORT TO INCLUDE THE MEMBER ID AND/OR NAME
     for first BinaryFile no-lock where BinaryFile.RecordType = "photos" and BinaryFile.FileName = "\photos\" + string(Member.PhotoIDNumber) + ".jpg":
         run CleanFileName(entry(num-entries(BinaryFile.filename,"\"),sablobfile.filename,"\"), output URLName).
         assign

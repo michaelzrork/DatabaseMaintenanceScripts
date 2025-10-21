@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-    File        : deleteSAEmailAddressRecords.p
+    File        : deleteEmailContactRecords.p
     Purpose     : 
 
     Syntax      : 
@@ -37,7 +37,7 @@ procedure ActivityLog:
     do for BufActivityLog transaction:
         create BufActivityLog.
         assign
-            BufActivityLog.SourceProgram = "deleteSAEmailAddressRecords.p"
+            BufActivityLog.SourceProgram = "deleteEmailContactRecords.p"
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"

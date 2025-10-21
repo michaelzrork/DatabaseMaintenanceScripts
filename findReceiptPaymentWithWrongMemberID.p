@@ -86,7 +86,7 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                 find first TransactionDetail no-lock where TransactionDetail.ID = Charge.ParentRecord no-error no-wait.
                 if available TransactionDetail then 
                 do:
-                    // IF THE PERSON ON THE SADETAIL RECORD DOES NOT MATCH THE PERSON ON THE RECEIPT PAYMENT RECORD, KEEP GOING
+                    // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD DOES NOT MATCH THE PERSON ON THE RECEIPT PAYMENT RECORD, KEEP GOING
                     if TransactionDetail.PatronLinkID <> PaymentTransaction.PaymentMemberID then 
                     do:
                         
@@ -97,7 +97,7 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                         if lookup(PaymentTransaction.Paycode,paycodeList) > 0 then 
                         do:                            
                             for first PaymentLog no-lock where PaymentLog.ReceiptNumber = PaymentTransaction.ReceiptNumber and PaymentLog.MemberLinkID <> TransactionDetail.PatronLinkID:
-                                // GRAB AMOUNT USED OR REFUNDED, UPDATE THE MEMBERLINKID THEN FIND THE SAPERSON RECORD AND ADJUST THE SCHOLARSHIPAMOUNT BY THAT AMOUNT
+                                // GRAB AMOUNT USED OR REFUNDED, UPDATE THE MEMBERLINKID THEN FIND THE MEMBER RECORD AND ADJUST THE SCHOLARSHIPAMOUNT BY THAT AMOUNT
                                 assign 
                                     paymentHistoryAmount = PaymentLog.Amount.
                             end.
@@ -113,7 +113,7 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                                 find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
                                 hhList = list(string(Account.EntityNumber),hhList).
                             end.
-                            // IF THE PERSON ON THE SADETAIL RECORD IS IN ONE OF THE HOUSEHOLDS THE INCORRECT PERSON IS IN, SKIP THE RECORD
+                            // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD IS IN ONE OF THE HOUSEHOLDS THE INCORRECT PERSON IS IN, SKIP THE RECORD
                             if lookup(string(PaymentTransaction.PaymentHousehold),hhList) ne 0 then next payment-loop.
                         end.
                         
@@ -127,7 +127,7 @@ for each PaymentTransaction no-lock where PaymentTransaction.PaymentMemberID <> 
                                 find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
                                 hhList = list(string(Account.EntityNumber),hhList).
                             end.
-                            // IF THE PERSON ON THE SADETAIL RECORD IS IN ONE OF THE HOUSEHOLDS THE INCORRECT PERSON IS IN, SKIP THE RECORD
+                            // IF THE PERSON ON THE TRANSACTIONDETAIL RECORD IS IN ONE OF THE HOUSEHOLDS THE INCORRECT PERSON IS IN, SKIP THE RECORD
                             if lookup(string(PaymentTransaction.PaymentHousehold),hhList) ne 0 then next payment-loop.
                         end.
                         

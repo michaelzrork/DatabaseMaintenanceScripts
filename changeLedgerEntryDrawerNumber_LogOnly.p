@@ -146,7 +146,7 @@ for each LedgerEntry no-lock:
     if LogOnly then next receipt-loop.   
      
     /* UPDATE DRAWER */
-    run fixSAGLDistributionDrawer(LedgerEntry.ID).
+    run fixLedgerEntryDrawer(LedgerEntry.ID).
 end.
 
 

@@ -68,7 +68,7 @@ procedure fixCartStatus:
 end.
 
 
-// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY SADETAIL RECORDS WERE CHANGED
+// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY TRANSACTIONDETAIL RECORDS WERE CHANGED
 procedure ActivityLog:
     define buffer BufActivityLog for ActivityLog.
     do for BufActivityLog transaction:

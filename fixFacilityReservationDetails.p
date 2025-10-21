@@ -69,13 +69,13 @@ for each TransactionDetail no-lock where TransactionDetail.Module = "FR":
         assign
             currentFileLinkCode6 = TransactionDetail.FileLinkCode6
             correctFileLinkCode6 = FRFacility.ComboKey
-            badDescription       = replace(correctFileLinkCode6,"_",":") + ";" // THIS SETS THE COMBOKEY TO HOW IT IS INCORRECTLY SET IN THE SADETAIL_DESCRIPTION 
+            badDescription       = replace(correctFileLinkCode6,"_",":") + ";" // THIS SETS THE COMBOKEY TO HOW IT IS INCORRECTLY SET IN THE TRANSACTIONDETAIL_DESCRIPTION 
             fixedDescription     = "".
     
         // IF THE CURRENT COMBOKEY IS DIFFERENT FROM THE FACILITY COMBO KEY, FIX IT
         if currentFileLinkCode6 <> correctFileLinkCode6 then run fixCode6(TransactionDetail.ID).
     
-        // IF THE SADETAIL DESCRIPTION HAS THE BAD COMBOKEY VALUE, LET'S UPDATE IT
+        // IF THE TRANSACTIONDETAIL DESCRIPTION HAS THE BAD COMBOKEY VALUE, LET'S UPDATE IT
         if index(TransactionDetail.Description,badDescription) > 0 then 
         do:
             assign 

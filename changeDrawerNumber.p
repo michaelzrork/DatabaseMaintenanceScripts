@@ -16,31 +16,31 @@
 *************************************************************************/
 
 define variable newDrawer                  as integer no-undo.
-define variable SAGLDistributionNum        as integer no-undo.
-define variable SAReceiptNum               as integer no-undo.
-define variable SAReceiptPaymentNum        as integer no-undo.
-define variable SAControlAccountHistoryNum as integer no-undo.
-define variable SAFeeHistoryNum            as integer no-undo.
-define variable SAGiftCertificateDetailNum as integer no-undo.
-define variable SAMiscIncomeNum            as integer no-undo.
-define variable SAPaymentHistoryNum        as integer no-undo.
-define variable SACouponHistoryNum         as integer no-undo.
-define variable SACreditCardHistoryNum     as integer no-undo.
-define variable SAEndOfShiftNum            as integer no-undo.
+define variable LedgerEntryNum        as integer no-undo.
+define variable PaymentReceiptNum               as integer no-undo.
+define variable PaymentTransactionNum        as integer no-undo.
+define variable AccountBalanceLogNum as integer no-undo.
+define variable ChargeHistoryNum            as integer no-undo.
+define variable GiftCertificateDetailNum as integer no-undo.
+define variable MiscIncomeNum            as integer no-undo.
+define variable PaymentLogNum        as integer no-undo.
+define variable DiscountLogNum         as integer no-undo.
+define variable CardTransactionLogNum     as integer no-undo.
+define variable ShiftCloseNum            as integer no-undo.
 
 assign
     newDrawer                  = 0
-    SAGLDistributionNum        = 0
-    SAReceiptNum               = 0
-    SAReceiptPaymentNum        = 0
-    SAControlAccountHistoryNum = 0
-    SAFeeHistoryNum            = 0
-    SAGiftCertificateDetailNum = 0
-    SAMiscIncomeNum            = 0
-    SAPaymentHistoryNum        = 0
-    SACouponHistoryNum         = 0
-    SACreditCardHistoryNum     = 0
-    SAEndOfShiftNum            = 0.
+    LedgerEntryNum        = 0
+    PaymentReceiptNum               = 0
+    PaymentTransactionNum        = 0
+    AccountBalanceLogNum = 0
+    ChargeHistoryNum            = 0
+    GiftCertificateDetailNum = 0
+    MiscIncomeNum            = 0
+    PaymentLogNum        = 0
+    DiscountLogNum         = 0
+    CardTransactionLogNum     = 0
+    ShiftCloseNum            = 0.
 
 /*************************************************************************
                                 MAIN BLOCK
@@ -64,23 +64,23 @@ procedure initialProcess:
         newDrawer = userDrawer.
     
     for each LedgerEntry no-lock where LedgerEntry.UserName = userMatch:
-        if LedgerEntry.CashDrawer <> newDrawer then run fixSAGLDistributionDrawer(LedgerEntry.ID).
+        if LedgerEntry.CashDrawer <> newDrawer then run fixLedgerEntryDrawer(LedgerEntry.ID).
     end.
 
     for each PaymentReceipt no-lock where PaymentReceipt.UserName = userMatch:
-        if PaymentReceipt.DrawerNumber <> newDrawer then run fixSAReceiptDrawer(PaymentReceipt.ID).
+        if PaymentReceipt.DrawerNumber <> newDrawer then run fixPaymentReceiptDrawer(PaymentReceipt.ID).
     end.
 
     for each PaymentTransaction no-lock where PaymentTransaction.username = userMatch:
-        if PaymentTransaction.CashDrawer <> newDrawer then run fixSAReceiptPaymentDrawer(PaymentTransaction.ID).
+        if PaymentTransaction.CashDrawer <> newDrawer then run fixPaymentTransactionDrawer(PaymentTransaction.ID).
     end.
 
     for each AccountBalanceLog no-lock where AccountBalanceLog.username = userMatch:
-        if AccountBalanceLog.CashDrawer <> newDrawer then run fixSAControlAccountHistoryDrawer(AccountBalanceLog.ID).
+        if AccountBalanceLog.CashDrawer <> newDrawer then run fixAccountBalanceLogDrawer(AccountBalanceLog.ID).
     end.
 
     for each ChargeHistory no-lock where ChargeHistory.username = userMatch:
-        if ChargeHistory.CashDrawer <> newDrawer then run fixSAFeeHistoryDrawer(ChargeHistory.ID).
+        if ChargeHistory.CashDrawer <> newDrawer then run fixChargeHistoryDrawer(ChargeHistory.ID).
     end.
 
     for each VoucherDetail no-lock where VoucherDetail.username = userMatch:
@@ -92,7 +92,7 @@ procedure initialProcess:
     end.
 
     for each PaymentLog no-lock where PaymentLog.username = userMatch:
-        if PaymentLog.DrawerNumber <> newDrawer then run fixSAPaymentHistoryDrawer(PaymentLog.ID).
+        if PaymentLog.DrawerNumber <> newDrawer then run fixPaymentLogDrawer(PaymentLog.ID).
     end.
     
     for each DiscountLog no-lock where DiscountLog.username = userMatch:
@@ -100,7 +100,7 @@ procedure initialProcess:
     end.
 
     for each CardTransactionLog no-lock where CardTransactionLog.username = userMatch:
-        if CardTransactionLog.CashDrawer <> newDrawer then run fixSACreditCardHistoryDrawer(CardTransactionLog.ID).
+        if CardTransactionLog.CashDrawer <> newDrawer then run fixCardTransactionLogDrawer(CardTransactionLog.ID).
     end.    
     
     for each ShiftClose no-lock where ShiftClose.username = userMatch:
@@ -118,7 +118,7 @@ procedure fixSAGLDistributionDrawer:
     do for bufLedgerEntry transaction:
         find first bufLedgerEntry exclusive-lock where bufLedgerEntry.ID = inpID no-error no-wait.
         if available bufLedgerEntry then assign
-                SAGLDistributionNum            = SAGLDistributionNum + 1
+                LedgerEntryNum            = LedgerEntryNum + 1
                 bufLedgerEntry.CashDrawer = newDrawer.
     end.
 end.
@@ -130,7 +130,7 @@ procedure fixSAReceiptDrawer:
     do for bufPaymentReceipt transaction:
         find first bufPaymentReceipt exclusive-lock where bufPaymentReceipt.ID = inpID no-error no-wait.
         if available bufPaymentReceipt then assign
-                SAReceiptNum              = SAReceiptNum + 1
+                PaymentReceiptNum              = PaymentReceiptNum + 1
                 bufPaymentReceipt.DrawerNumber = newDrawer.
     end.
 end.
@@ -142,7 +142,7 @@ procedure fixSAReceiptPaymentDrawer:
     do for bufPaymentTransaction transaction:
         find first bufPaymentTransaction exclusive-lock where bufPaymentTransaction.ID = inpID no-error no-wait.
         if available bufPaymentTransaction then assign
-                SAReceiptPaymentNum            = SAReceiptPaymentNum + 1
+                PaymentTransactionNum            = PaymentTransactionNum + 1
                 bufPaymentTransaction.CashDrawer = newDrawer.
     end.
 end.
@@ -154,7 +154,7 @@ procedure fixSAControlAccountHistoryDrawer:
     do for bufAccountBalanceLog transaction:
         find first bufAccountBalanceLog exclusive-lock where bufAccountBalanceLog.ID = inpID no-error no-wait.
         if available bufAccountBalanceLog then assign
-                SAControlAccountHistoryNum            = SAControlAccountHistoryNum + 1
+                AccountBalanceLogNum            = AccountBalanceLogNum + 1
                 bufAccountBalanceLog.CashDrawer = newDrawer.
     end.
 end.
@@ -166,7 +166,7 @@ procedure fixSAFeeHistoryDrawer:
     do for bufChargeHistory transaction:
         find first bufChargeHistory exclusive-lock where bufChargeHistory.ID = inpID no-error no-wait.
         if available bufChargeHistory then assign
-                SAFeeHistoryNum            = SAFeeHistoryNum + 1
+                ChargeHistoryNum            = ChargeHistoryNum + 1
                 bufChargeHistory.CashDrawer = newDrawer.
     end.
 end.
@@ -178,7 +178,7 @@ procedure fixSAGiftCertificateDetailDrawer:
     do for bufVoucherDetail transaction:
         find first bufVoucherDetail exclusive-lock where bufVoucherDetail.ID = inpID no-error no-wait.
         if available bufVoucherDetail then assign
-                SAGiftCertificateDetailNum            = SAGiftCertificateDetailNum + 1
+                GiftCertificateDetailNum            = GiftCertificateDetailNum + 1
                 bufVoucherDetail.CashDrawer = newDrawer.
     end.
 end.
@@ -190,7 +190,7 @@ procedure fixSAMiscIncomeDrawer:
     do for bufOtherRevenue transaction:
         find first bufOtherRevenue exclusive-lock where bufOtherRevenue.ID = inpID no-error no-wait.
         if available bufOtherRevenue then assign
-                SAMiscIncomeNum            = SAMiscIncomeNum + 1
+                MiscIncomeNum            = MiscIncomeNum + 1
                 bufOtherRevenue.CashDrawer = newDrawer.
     end.
 end.
@@ -202,7 +202,7 @@ procedure fixSACouponHistoryDrawer:
     do for bufDiscountLog transaction:
         find first bufDiscountLog exclusive-lock where bufDiscountLog.ID = inpID no-error no-wait.
         if available bufDiscountLog then assign
-                SACouponHistoryNum            = SACouponHistoryNum + 1
+                DiscountLogNum            = DiscountLogNum + 1
                 bufDiscountLog.CashDrawer = newDrawer.
     end.
 end.
@@ -214,7 +214,7 @@ procedure fixSACreditCardHistoryDrawer:
     do for bufCardTransactionLog transaction:
         find first bufCardTransactionLog exclusive-lock where bufCardTransactionLog.ID = inpID no-error no-wait.
         if available bufCardTransactionLog then assign
-                SACreditCardHistoryNum            = SACreditCardHistoryNum + 1
+                CardTransactionLogNum            = CardTransactionLogNum + 1
                 bufCardTransactionLog.CashDrawer = newDrawer.
     end.
 end.
@@ -226,7 +226,7 @@ procedure fixSAPaymentHistoryDrawer:
     do for bufPaymentLog transaction:
         find first bufPaymentLog exclusive-lock where bufPaymentLog.ID = inpID no-error no-wait.
         if available bufPaymentLog then assign
-                SAPaymentHistoryNum              = SAPaymentHistoryNum + 1
+                PaymentLogNum              = PaymentLogNum + 1
                 bufPaymentLog.DrawerNumber = newDrawer.
     end.
 end.
@@ -241,7 +241,7 @@ procedure fixSAEndOfShiftDrawer:
         if available bufShiftClose then 
         do: 
             assign
-                SAEndOfShiftNum = SAEndOfShiftNum + 1.
+                ShiftCloseNum = ShiftCloseNum + 1.
             if drawerField = "DrawerNumber" then assign bufShiftClose.DrawerNumber = newDrawer.
             else if drawerField = "OldDrawerNumber" then assign bufShiftClose.OldDrawerNumber = newDrawer.
         end.
@@ -259,7 +259,7 @@ procedure ActivityLog:
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Change drawer number for WWW and ZZZ transactions"
-            BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(SAGLDistributionNum + SAReceiptNum + SAReceiptPaymentNum + SAControlAccountHistoryNum + SAFeeHistoryNum + SAGiftCertificateDetailNum + SAMiscIncomeNum + SAPaymentHistoryNum + SACouponHistoryNum + SACreditCardHistoryNum + SAEndOfShiftNum)
-            BufActivityLog.Detail3       = "LedgerEntry: " + string(SAGLDistributionNum) + ", PaymentReceipt: " + string(SAReceiptNum) + ", PaymentTransaction: " + string(SAReceiptPaymentNum) + ", AccountBalanceLog: " + string(SAControlAccountHistoryNum) + ", ChargeHistory: " + string(SAFeeHistoryNum) + ", VoucherDetail: " + string(SAGiftCertificateDetailNum) + ", OtherRevenue: " + string(SAMiscIncomeNum) + ", PaymentLog: " + string(SAPaymentHistoryNum) + ", DiscountLog: " + string(SACouponHistoryNum) + ", CardTransactionLog: " + string(SACreditCardHistoryNum) + ", ShiftClose: " + string(SAEndOfShiftNum).
+            BufActivityLog.Detail2       = "Number of Records Adjusted: " + string(LedgerEntryNum + PaymentReceiptNum + PaymentTransactionNum + AccountBalanceLogNum + ChargeHistoryNum + GiftCertificateDetailNum + MiscIncomeNum + PaymentLogNum + DiscountLogNum + CardTransactionLogNum + ShiftCloseNum)
+            BufActivityLog.Detail3       = "LedgerEntry: " + string(LedgerEntryNum) + ", PaymentReceipt: " + string(PaymentReceiptNum) + ", PaymentTransaction: " + string(PaymentTransactionNum) + ", AccountBalanceLog: " + string(AccountBalanceLogNum) + ", ChargeHistory: " + string(ChargeHistoryNum) + ", VoucherDetail: " + string(GiftCertificateDetailNum) + ", OtherRevenue: " + string(MiscIncomeNum) + ", PaymentLog: " + string(PaymentLogNum) + ", DiscountLog: " + string(DiscountLogNum) + ", CardTransactionLog: " + string(CardTransactionLogNum) + ", ShiftClose: " + string(ShiftCloseNum).
     end.
 end procedure.

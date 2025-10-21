@@ -21,7 +21,7 @@
 {Includes/Framework.i} 
 {Includes/BusinessLogic.i}
 {Includes/ProcessingConfig.i}
-{Includes/ttHouseholdMerge.i}
+{Includes/ttAccountMerge.i}
 {Includes/ModuleList.i}
 
 define variable dupeFirstName   as character no-undo.
@@ -80,7 +80,7 @@ for each EntityLink no-lock where EntityLink.ExternalID = "0" + string(EntityLin
         assign 
             ix = ix + 1.
         if ix ne SaLink.Order then
-            run SetSALink(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
+            run SetRelationship(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
     end.
     
     if hhID = 0 then next xref-loop.
@@ -121,8 +121,8 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// SET SALINK ORDER
-procedure SetSALink:
+// SET RELATIONSHIP ORDER
+procedure SetRelationship:
   
     define input parameter inpID as int64 no-undo. 
     define input parameter isprimary as logical no-undo.
@@ -226,7 +226,7 @@ procedure mergeFM:
 
 end procedure.
 
-// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY SADETAIL RECORDS WERE CHANGED
+// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY TRANSACTIONDETAIL RECORDS WERE CHANGED
 procedure ActivityLog:
     def buffer BufActivityLog for ActivityLog.
     do for BufActivityLog transaction:

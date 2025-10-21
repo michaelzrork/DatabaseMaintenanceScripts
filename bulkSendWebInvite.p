@@ -116,7 +116,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
         assign
             oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
             oPersonBO          = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE SALINK OBJECT */
+            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE RELATIONSHIP OBJECT */
             permissionsUpdated = no
             inviteSent         = no.
         

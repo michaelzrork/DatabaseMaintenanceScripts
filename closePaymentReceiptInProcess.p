@@ -100,13 +100,13 @@ for each PaymentReceipt no-lock where PaymentReceipt.RecordStatus = "In Process"
                 tmpItem         = TransactionDetail.FileLinkCode1 + (if not isempty(TransactionDetail.filelinkcode2) then ("-" + TransactionDetail.filelinkcode2) else "") +
               (if not isempty(TransactionDetail.filelinkcode3) then ("-" + TransactionDetail.filelinkcode3) else "")
                 removedItemLIst = list(removedItemList,tmpItem).
-        run Business/RemoveFromCart.p (TransactionDetail.ID, {&SADetailRemoved}, yes). 
+        run Business/RemoveFromCart.p (TransactionDetail.ID, {&TransactionDetailRemoved}, yes).
     end.
-    
+
     if tmpItemCount gt 15 then removedItemList = removedItemList + "Plus " + string(tmpItemCount - 15) + " more...".
 
-    for each SAReceiptpayment no-lock where SAReceiptpayment.receiptnumber = PaymentReceipt.ReceiptNumber:
-        run deleteSAReceiptPayment (rowid(SAReceiptpayment)).
+    for each PaymentTransaction no-lock where PaymentTransaction.receiptnumber = PaymentReceipt.ReceiptNumber:
+        run deletePaymentTransaction (rowid(PaymentTransaction)).
     end.
 
     /*** THESE SHOULD BE DELETED IN REMOVEFROMCART.P SINCE THEY ARE TIED TO TransactionDetail BUT THIS IS A FALL BACK JUST TO BE SAFE ***/
@@ -114,7 +114,7 @@ for each PaymentReceipt no-lock where PaymentReceipt.RecordStatus = "In Process"
         run deleteSAGLDistribution (rowid(LedgerEntry)).
     end.
 
-    /*** THESE SHOULD BE DELETED IN REMOVEFROMCART.P SINCE THEY ARE TIED TO SADETAIL BUT THIS IS A FALL BACK JUST TO BE SAFE ***/  
+    /*** THESE SHOULD BE DELETED IN REMOVEFROMCART.P SINCE THEY ARE TIED TO TRANSACTIONDETAIL BUT THIS IS A FALL BACK JUST TO BE SAFE ***/  
     for each AccountBalanceLog no-lock where AccountBalanceLog.EntityNumber = HH and
         AccountBalanceLog.receiptnumber = PaymentReceipt.ReceiptNumber:
         run deleteSAControlAccountHistory (rowid(AccountBalanceLog)).
@@ -210,9 +210,9 @@ run ActivityLog({&ProgramDescription},"Check Document Center for " + {&ProgramNa
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-procedure deleteSAReceiptpayment: 
+procedure deletePaymentTransaction: 
     def input parameter InpRowid as rowid no-undo.
-    def buffer BufReceiptpayment for SAReceiptpayment. 
+    def buffer BufReceiptpayment for PaymentTransaction. 
     do for BufReceiptpayment transaction: 
         find first BufReceiptpayment exclusive-lock where rowid(BufReceiptpayment) = inprowid no-error no-wait.
         if available BufReceiptpayment then  delete BufReceiptpayment.
@@ -228,7 +228,7 @@ procedure deleteSAGLDistribution:
     end. 
 end procedure.
 
-procedure deleteSAControlAccountHistory: 
+procedure deleteAccountBalanceLog: 
     def input parameter InpRowid as rowid no-undo.
     def buffer BufControlAccountHistory for AccountBalanceLog. 
     do for BufControlAccountHistory transaction: 

@@ -25,7 +25,7 @@ assign
 *************************************************************************/
 
 for each PhoneNumber no-lock where PhoneNumber.PrimaryPhoneNumber = yes and PhoneNumber.ParentTable = "Member":
-    run deleteSAPhone(PhoneNumber.ID).
+    run deletePhoneNumber(PhoneNumber.ID).
 end.
 
 for each Member no-lock where Member.PrimaryPhoneNumber <> "":

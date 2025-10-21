@@ -91,7 +91,7 @@ for each FilterCriteria no-lock where FilterCriteria.RecordType = "Advanced":
                                                     end.
                                                 end.
                                             end. // WHEN ARSection
-                                    end case. // CASE SALINK.ParentTable
+                                    end case. // CASE RELATIONSHIP.ParentTable
                                 end. 
                             end. // WHEN Collection
                         when "LookupCode" then 
@@ -171,7 +171,7 @@ for each FilterCriteria no-lock where FilterCriteria.RecordType = "Advanced":
                                                     end.
                                                 end.
                                             end. // WHEN ARSection
-                                    end case. // CASE SALINK.ParentTable
+                                    end case. // CASE RELATIONSHIP.ParentTable
                                 end. 
                             end. // WHEN Collection
                         

@@ -156,7 +156,7 @@ for each PhoneNumber no-lock:
                 hhNum = Account.EntityNumber.
     end.
     
-    run deleteSAPhone(PhoneNumber.ID).
+    run deletePhoneNumber(PhoneNumber.ID).
 end.
 
 household-loop:
