@@ -10,7 +10,7 @@
     Created     : 1/1/24
     Notes       : THIS DID NOT WORK PROPERLY AND HAS NOT BEEN USED TO FIX ANY ISSUES
                   I ENDED UP USING clearDiscountFeeHistory.p INSTEAD, SINCE THE ISSUE WAS REVOLVED AROUND A BUG THAT CAUSED
-                  THE SAFEEHISTORY RECORD TO USE THE DISCOUNT FEE PERCENTAGE AS THE FEEHISTORY AMOUNT
+                  THE CHARGEHISTORY RECORD TO USE THE DISCOUNT FEE PERCENTAGE AS THE FEEHISTORY AMOUNT
   ----------------------------------------------------------------------*/
 
 /*************************************************************************
@@ -177,7 +177,7 @@ procedure fixReceiptAmount:
     end.
 end procedure.
 
-// SET SADETAIL RECORD TO FULLY PAID
+// SET TRANSACTIONDETAIL RECORD TO FULLY PAID
 procedure setToPaid:
     define input parameter inpID as int64 no-undo.
     define buffer bufTransactionDetail for TransactionDetail.

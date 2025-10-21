@@ -29,14 +29,14 @@ define variable personFirstName          as character no-undo.
 define variable personLastName           as character no-undo.
 define variable canFindFM                as log       no-undo.
 define variable canFindHH                as log       no-undo.
-define variable deletedSALinkCount       as integer   no-undo.
-define variable fixedSALinkCount         as integer   no-undo.
+define variable deletedRelationshipCount       as integer   no-undo.
+define variable fixedRelationshipCount         as integer   no-undo.
 define variable numFMDeleted             as integer   no-undo.
 define variable numHHDeleted             as integer   no-undo.
 
 assign
-    deletedSALinkCount  = 0
-    fixedSALinkCount    = 0
+    deletedRelationshipCount  = 0
+    fixedRelationshipCount    = 0
     numFMDeleted        = 0
     numHHDeleted        = 0
     primaryGuardianCode = TrueVal(ProfileChar("Static Parameters","PrimeGuardSponsorCode")).
@@ -72,7 +72,7 @@ end.
 // CREATE LOG FILE FIELDS
 run put-stream ("Record Notes,Record ID,Household Number,Original Relationship Code,New Relationship Code,Household ID,Household First Name,Household Last Name,Person ID,Person First Name,Person Last Name").
 
-// SALINK LOOP
+// RELATIONSHIP LOOP
 for each Relationship no-lock where primary = true and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member" and Relationship.Relationship <> primaryGuardianCode:
     assign 
         hhID                     = Relationship.ParentTableID
@@ -84,7 +84,7 @@ for each Relationship no-lock where primary = true and Relationship.ParentTable 
         personFirstName          = ""
         personLastName           = "".
     
-    // FIND SAPERSON RECORD
+    // FIND MEMBER RECORD
     find first Member no-lock where Member.ID = Relationship.ChildTableID no-wait no-error.
     if available Member then 
     do:
@@ -102,7 +102,7 @@ for each Relationship no-lock where primary = true and Relationship.ParentTable 
             personLastName  = "".
     end.
 
-    // FIND SAHOUSEHOLD RECORD
+    // FIND ACCOUNT RECORD
     find first Account no-lock where Account.ID = Relationship.ParentTableID no-wait no-error.
     if available Account then 
     do:
@@ -125,16 +125,16 @@ for each Relationship no-lock where primary = true and Relationship.ParentTable 
             hhLastName  = "".
     end.
 
-    // NOT SURE IF I WANT TO BOTHER WITH CLEARING OUT ORPHANED SALINK RECORDS JUST YET... THIS SHOULD WORK FINE WITHOUT THIS STUFF    
+    // NOT SURE IF I WANT TO BOTHER WITH CLEARING OUT ORPHANED RELATIONSHIP RECORDS JUST YET... THIS SHOULD WORK FINE WITHOUT THIS STUFF    
 
     // IF WE CAN'T FIND THE FM BUT WE CAN FIND A HH, LET'S FIND ADDITIONAL FAMILY MEMBERS AND MARK ONE OF THEM AS THE PRIMARY GUARDIAN, OTHERWISE LET'S DELETE THE HOUSEHOLD
     if not canFindFM and canFindHH then run findAdditionalFM(Relationship.ParentTableID,Relationship.ChildTableID).
         
-    // IF THEY ARE NOT IN ANOTHER HH, THEN LET'S CHECK IF THERE IS PURCHASE HISTORY; IF NO HISTORY, DELETE THE SALINK AND THE FM; IF THERE IS PURCHASE HISTORY LET'S JUST LOG IT FOR NOW
+    // IF THEY ARE NOT IN ANOTHER HH, THEN LET'S CHECK IF THERE IS PURCHASE HISTORY; IF NO HISTORY, DELETE THE RELATIONSHIP AND THE FM; IF THERE IS PURCHASE HISTORY LET'S JUST LOG IT FOR NOW
     if canFindFM and not canFindHH then run findAdditionalHH(Relationship.ParentTableID,Relationship.ChildTableID).
     
-    // IF WE CAN'T FIND THE FM AND WE CAN'T FIND THE HH, THEN LET'S DELETE THIS ORPHANED SALINK RECORD
-    if not canFindFM and not canFindHH then run deleteSALink(Relationship.ID,"No Member or Account Records Available").
+    // IF WE CAN'T FIND THE FM AND WE CAN'T FIND THE HH, THEN LET'S DELETE THIS ORPHANED RELATIONSHIP RECORD
+    if not canFindFM and not canFindHH then run deleteRelationship(Relationship.ID,"No Member or Account Records Available").
     
     // IF WE CAN FIND THE FM AND WE CAN FIND A HH, UPDATE THE RELATIONSHIP CODE
     if canFindFM and canFindHH then run fixRelationshipCode(Relationship.ID).
@@ -162,56 +162,56 @@ procedure findAdditionalFM:
     define buffer bufRelationship   for Relationship.
     define buffer bufMember for Member.
     
-    // FIND ANY OTHER FM ON THE HH WITH THE PRIMARY TOGGLE, IF AVAILABLE, DELETE THE SALINK RECORD WITH THE MISSING SAPERSON RECORD
-    // THE OTHER SALINK RECORD WITH THE PRIMARY TOGGLE WILL NATURALLY BE FED THROUGH THE LOOP AND BE UPDATED OR DELETED
+    // FIND ANY OTHER FM ON THE HH WITH THE PRIMARY TOGGLE, IF AVAILABLE, DELETE THE RELATIONSHIP RECORD WITH THE MISSING MEMBER RECORD
+    // THE OTHER RELATIONSHIP RECORD WITH THE PRIMARY TOGGLE WILL NATURALLY BE FED THROUGH THE LOOP AND BE UPDATED OR DELETED
     for first bufRelationship no-lock where bufRelationship.ParentTableID = parentID and bufRelationship.ChildTableID <> childID and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" and bufRelationship.Primary = true by bufRelationship.Order:
-        run deleteSALink (Relationship.ID,"No Member Record; Addtional FM Linked to HH has Primary Toggle Enabled - Confirm they are linked correctly").
+        run deleteRelationship (Relationship.ID,"No Member Record; Addtional FM Linked to HH has Primary Toggle Enabled - Confirm they are linked correctly").
         return.
     end.
     
     // IF NO OTHER FM HAS THE PRIMARY TOGGLE, FIND ANY OTHER FM ON THE HH WITHOUT A PRIMARY TOGGLE
-    // DELETE THE SALINK RECORD WITH THE MISSING SAPERSON RECORD AND NOTATE IN THE LOG THAT THERE IS A FM MEMBER AVAILABLE TO MANUALLY BE LINKED AS THE PRIMARY MEMBER
+    // DELETE THE RELATIONSHIP RECORD WITH THE MISSING MEMBER RECORD AND NOTATE IN THE LOG THAT THERE IS A FM MEMBER AVAILABLE TO MANUALLY BE LINKED AS THE PRIMARY MEMBER
     for each bufRelationship no-lock where bufRelationship.ParentTableID = parentID and bufRelationship.ChildTableID <> childID and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" and bufRelationship.Primary = false by bufRelationship.Order:
         find first bufMember no-lock where bufMember.ID = bufRelationship.ChildTableID no-error no-wait.
         if available bufMember then 
         do:
-            run deleteSALink (Relationship.ID,"No Member Record; Additional FM available to manually be linked as Primary on HH").
+            run deleteRelationship (Relationship.ID,"No Member Record; Additional FM available to manually be linked as Primary on HH").
             return.
         end.
     end.
     
-    // IF NO ADDITIONAL FM ON THE HH HAS AN SAPERSON RECORD, DELETE THE SALINK, NOTE THAT THERE IS AN ORPHANED HH RECORD    
-    run deleteSALink(Relationship.ID,"No Member Record; No Additional FM on HH - Potentially Orphaned HH Record").
+    // IF NO ADDITIONAL FM ON THE HH HAS AN MEMBER RECORD, DELETE THE RELATIONSHIP, NOTE THAT THERE IS AN ORPHANED HH RECORD    
+    run deleteRelationship(Relationship.ID,"No Member Record; No Additional FM on HH - Potentially Orphaned HH Record").
     // IF THE NOW ORPHANED HH HAS NO PURCHASE HISTORY, DELETE THE HH
     find first TransactionDetail no-lock where TransactionDetail.EntityNumber = hhNum no-error no-wait. // SHOULD PROBABLY MAKE THIS A FOR FIRST AND ADD RECORDSTATUS <> "REMOVED"
     if not available TransactionDetail then run deleteSAHousehold(Relationship.ParentTableID).
 end procedure. // findAdditionalFM
 
 
-// FIND ADDITIONAL HOUSEHOLD FOR SAPERSON RECORD
+// FIND ADDITIONAL HOUSEHOLD FOR MEMBER RECORD
 procedure findAdditionalHH:
     define input parameter parentID as int64 no-undo.
     define input parameter childID as int64 no-undo.
     define buffer bufRelationship for Relationship.
     do for bufRelationship transaction:
-        // FIND A LINK RECORD FOR THE FM LINKED TO ANOTHER HH, IF AVAILABLE, DELETE THE SALINK FOR THE MISSING HH
+        // FIND A LINK RECORD FOR THE FM LINKED TO ANOTHER HH, IF AVAILABLE, DELETE THE RELATIONSHIP FOR THE MISSING HH
         for first bufRelationship no-lock where bufRelationship.ChildTableID = childID and bufRelationship.ParentTableID <> parentID and bufRelationship.ParentTable = "Account" and bufRelationship.ChildTable = "Member" by bufRelationship.Order:
-            run deleteSALink(Relationship.ID,"No Account Record, Member Record Linked to additional HH").
+            run deleteRelationship(Relationship.ID,"No Account Record, Member Record Linked to additional HH").
             return.
         end.
-        // IF THE FM IS NOT LINKED TO A SECOND HH, THEN DELETE THE SALINK AND THE SAPERSON RECORDS (SO LONG AS THERE IS NO PURCHASE HISTORY)
+        // IF THE FM IS NOT LINKED TO A SECOND HH, THEN DELETE THE RELATIONSHIP AND THE MEMBER RECORDS (SO LONG AS THERE IS NO PURCHASE HISTORY)
         if not available bufRelationship then 
         do:
-            run deleteSALink(Relationship.ID,"No Account Record, Member not linked to additional HH - Potentially Orphaned FM Record").
+            run deleteRelationship(Relationship.ID,"No Account Record, Member not linked to additional HH - Potentially Orphaned FM Record").
             find first TransactionDetail no-lock where TransactionDetail.PatronLinkID = childID no-error no-wait. // SHOULD PROBABLY MAKE THIS A FOR FIRST AND ADD RECORDSTATUS <> "REMOVED"
-            if not available TransactionDetail then run deleteSAPerson(childID).
+            if not available TransactionDetail then run deleteMember(childID).
         end.
     end.
 end procedure. // findAdditionalHH
 
 
-// DELETE SALINK
-procedure deleteSALink:
+// DELETE RELATIONSHIP
+procedure deleteRelationship:
     define input parameter inpid as int64 no-undo.
     define input parameter deleteNote as character no-undo.
     define buffer bufRelationship for Relationship.
@@ -219,7 +219,7 @@ procedure deleteSALink:
         find bufRelationship exclusive-lock where bufRelationship.ID = inpid no-error no-wait.
         if available bufRelationship then 
         do:
-            deletedSALinkCount = deletedSALinkCount + 1.
+            deletedRelationshipCount = deletedRelationshipCount + 1.
             run put-stream ("~"" + "Relationship Record Deleted; " + deleteNote + "~"," + string(bufRelationship.ID) + "," + string(hhNum) + "," + originalRelationshipCode + "," + "N/A" + "," + string(hhID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
             delete bufRelationship.
         end.
@@ -228,7 +228,7 @@ end procedure.
 
 
 // DELETE ORPHAN HOUSEHOLD
-procedure deleteSAHousehold:
+procedure deleteAccount:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
     do for bufAccount transaction:
@@ -243,8 +243,8 @@ procedure deleteSAHousehold:
 end.
 
 
-// DELETE SAPERSON
-procedure deleteSAPerson:
+// DELETE MEMBER
+procedure deleteMember:
     define input parameter inpID as int64 no-undo.
     define buffer bufMember for Member.
     do for bufMember transaction:
@@ -269,7 +269,7 @@ procedure fixRelationshipCode:
         do:
             run put-stream ("~"" + "Primary Guardian Relationship Code Updated" + "~"," + string(bufRelationship.ID) + "," + string(hhNum) + "," + originalRelationshipCode + "," + primaryGuardianCode + "," + string(hhID) + "," + "~"" + hhFirstName + "~"" + "," + "~"" + hhLastName + "~"" + "," + string(personID) + "," + "~"" + personFirstName + "~"" + "," + "~"" + personLastName + "~"" + ",").
             assign
-                fixedSALinkCount       = fixedSALinkCount + 1
+                fixedRelationshipCount       = fixedRelationshipCount + 1
                 bufRelationship.Relationship = primaryGuardianCode.
         end.
     end.
@@ -306,6 +306,6 @@ procedure ActivityLog:
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = logDetail
             BufActivityLog.Detail2       = "Check Document Center for updatePrimaryGuardianRelationshipCodeLog for log file of records changed"
-            bufActivityLog.Detail3       = "Relationship records updated to Primary Guardian Relationship Code: " + string(fixedSALinkCount) + "; Relationship records deleted: " + string(deletedSALinkCount) + "; Member records deleted: " + string(numFMDeleted) + "; Account records deleted: " + string(numHHDeleted).
+            bufActivityLog.Detail3       = "Relationship records updated to Primary Guardian Relationship Code: " + string(fixedRelationshipCount) + "; Relationship records deleted: " + string(deletedRelationshipCount) + "; Member records deleted: " + string(numFMDeleted) + "; Account records deleted: " + string(numHHDeleted).
     end.
 end procedure.

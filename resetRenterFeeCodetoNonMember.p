@@ -107,7 +107,7 @@ procedure changeFeeCode: /* REPLACES OLD FEECODE WITH NEW FEECODE */
         do countVar = 1 to num-entries(oldFeeCodes):
             if entry(countVar,oldFeeCodes) = feecodetoReplace or entry(countVar,OldFeeCodes) = newFeeCode then next count-loop.
             assign 
-                bufAccount.CodeValue = bufSAhousehold.CodeValue + "," + entry(countVar,oldFeeCodes).
+                bufAccount.CodeValue = bufAccount.CodeValue + "," + entry(countVar,oldFeeCodes).
         end.
     end.
 end procedure. /* CHANGE FEE CODE */

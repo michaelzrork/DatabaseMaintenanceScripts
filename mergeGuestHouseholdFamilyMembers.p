@@ -18,7 +18,7 @@
 {Includes/Framework.i} 
 {Includes/BusinessLogic.i}
 {Includes/ProcessingConfig.i}
-{Includes/ttHouseholdMerge.i}
+{Includes/ttAccountMerge.i}
 {Includes/ModuleList.i}
 
 define variable dupeFirstName     as character no-undo.
@@ -63,8 +63,8 @@ define variable ModuleList        as character no-undo.
 define variable NewFileName       as character no-undo.
 define variable InternalHH        as character no-undo.
 
-define buffer bufToSAHousehold   for Account.
-define buffer bufFromSAHousehold for Account. 
+define buffer bufToAccount   for Account.
+define buffer bufFromAccount for Account. 
     
 assign
     numRecs = 0.
@@ -118,7 +118,7 @@ for each Relationship no-lock where Relationship.ParentTableID = hhID and Relati
     assign 
         ix = ix + 1.
     if ix ne SaLink.Order then
-        run SetSALink(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
+        run SetRelationship(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
 end.
 
 // FIND DUPE PERSON ORDER NUMBER
@@ -145,8 +145,8 @@ run ActivityLog("Merged duplicate family members within the same HH").
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// SET SALINK ORDER
-procedure SetSALink:
+// SET RELATIONSHIP ORDER
+procedure SetRelationship:
   
     define input parameter inpID as int64 no-undo. 
     define input parameter isprimary as logical no-undo.
@@ -233,7 +233,7 @@ procedure mergeFM:
 
 end procedure.
 
-// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY SADETAIL RECORDS WERE CHANGED
+// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY TRANSACTIONDETAIL RECORDS WERE CHANGED
 procedure ActivityLog:
     define input parameter logDetail as character no-undo.
     def buffer BufActivityLog for ActivityLog.
@@ -317,7 +317,7 @@ end procedure.
 
 /* **********************  Internal Procedures  *********************** */
 
-procedure adjustSALinks:
+procedure adjustRelationships:
     /*------------------------------------------------------------------------------
      Purpose:
      Notes:
@@ -334,7 +334,7 @@ procedure adjustSALinks:
             assign 
                 ix = ix + 1.
             if ix ne SaLink.Order then
-                run SetSALink(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
+                run SetRelationship(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
         end.
         ix = 0.            
         for each Relationship no-lock 
@@ -343,7 +343,7 @@ procedure adjustSALinks:
             assign 
                 ix = ix + 1.
             if ix ne SaLink.Order then
-                run SetSALink(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
+                run SetRelationship(SaLink.id, Relationship.Primary, ix, Relationship.Relationship).   
         end. 
     end.  
 
@@ -423,7 +423,7 @@ procedure createPreMerge:
         assign
             ttPreMerge.mergedesc = (if not good-hist then "CONFLICT:  " else 
                             if TransactionDetail.Archived then "ARCHIVED: " else "") + TransactionDetail.Description +
-                            "  Status: " + SADETAIL.RecordStatus + 
+                            "  Status: " + TRANSACTIONDETAIL.RecordStatus + 
                             " (" + nameDescription + 
                             ") (From House: " + string(FromHHNumber) + " To House: " + string(ToHHnumber) + ")" 
             ttPreMerge.conflict  = if not good-hist then yes else no.
@@ -496,7 +496,7 @@ procedure makeNextAvailablePersonPrimary:
      Notes:
     ------------------------------------------------------------------------------*/
     define buffer bufSaLink         for SaLink.
-    define buffer BufSAhousehold    for SaHousehold.
+    define buffer BufAccount    for SaHousehold.
     define buffer BufEmailAddress for EmailContact.
     define buffer BufPhone        for PhoneNumber.
     define buffer BufMember       for SaPerson.
@@ -511,28 +511,28 @@ procedure makeNextAvailablePersonPrimary:
             bufSaLink.ParentTableID = FromHHID and
             bufSaLink.ParentTable = "Account" and           
             bufSaLink.Order = ttFamilyFromPreMerge.number:
-            run SetSALink(bufSaLink.id, yes, bufSaLink.Order, primaryRelationship).               
+            run SetRelationship(bufSaLink.id, yes, bufSaLink.Order, primaryRelationship).               
         end. 
         leave.    
     end.
     if not available ttFamilyFromPreMerge then return.
 
-    do for BufSAhousehold,BufEmailAddress,BufPhone transaction:
-        find BufSAhousehold exclusive-lock where BufSAhousehold.id = FromHHID no-error no-wait.
+    do for BufAccount,BufEmailAddress,BufPhone transaction:
+        find BufAccount exclusive-lock where BufAccount.id = FromHHID no-error no-wait.
         find BufMember no-lock where BufMember.id = ttFamilyFromPreMerge.personid no-error no-wait.
-        if not available BufSAhousehold or not available BufMember then return.
+        if not available BufAccount or not available BufMember then return.
         assign
-            BufSAhousehold.firstname             = BufMember.firstname
-            BufSAhousehold.lastname              = BufMember.lastname
-            BufSAhousehold.primaryemailaddress   = BufMember.primaryemailaddress
-            BufSAhousehold.PrimaryPhoneNumber    = BufMember.PrimaryPhoneNumber
-            BufSAhousehold.PrimaryPhoneType      = BufMember.PrimaryPhoneType
-            BufSAhousehold.PrimaryPhoneExtension = BufMember.PrimaryPhoneExtension.
+            BufAccount.firstname             = BufMember.firstname
+            BufAccount.lastname              = BufMember.lastname
+            BufAccount.primaryemailaddress   = BufMember.primaryemailaddress
+            BufAccount.PrimaryPhoneNumber    = BufMember.PrimaryPhoneNumber
+            BufAccount.PrimaryPhoneType      = BufMember.PrimaryPhoneType
+            BufAccount.PrimaryPhoneExtension = BufMember.PrimaryPhoneExtension.
         if BufMember.primaryemailaddress gt "" then 
         do: 
             for first EmailContact no-lock where EmailContact.ParentRecord = FromHHID and
                 EmailContact.PrimaryEmailAddress = yes:
-                run updateSAPrimaryEmailAddress(EmailContact.id,BufSAhousehold.primaryemailaddress, BufMember.id).
+                run updateSAPrimaryEmailAddress(EmailContact.id,BufAccount.primaryemailaddress, BufMember.id).
             end.
             if not available EmailContact then 
             do:
@@ -548,7 +548,7 @@ procedure makeNextAvailablePersonPrimary:
         else 
             for first EmailContact no-lock where EmailContact.ParentRecord = FromHHID and
                 EmailContact.PrimaryEmailAddress = yes:
-                run purgeSAEmailAddress(EmailContact.id).
+                run purgeEmailContact(EmailContact.id).
             end.
         if BufMember.PrimaryPhoneNumber gt "" then 
         do:
@@ -1236,7 +1236,7 @@ procedure ProcessMerge:
     define buffer bufLSTeam             for LSTeam.  
     define buffer bufContactEmergency for ContactEmergency.
     define buffer bufAccountAddress for AccountAddress.
-    define buffer bufBlobfile         for SABlobfile.
+    define buffer bufBinaryFile         for BinaryFile.
     define buffer bufRelationship             for Relationship. 
     define buffer bufLSSchedule         for LSSchedule.
     
@@ -1254,10 +1254,10 @@ procedure ProcessMerge:
         "").
 
   
-    find first bufFromSAHousehold no-lock where bufFromSAHousehold.EntityNumber = FromHHNumber no-error.      
-    FromHHID = if available bufFromSAHousehold then bufFromSAHousehold.id else 0.
-    find first bufToSAHousehold no-lock where bufToSAHousehold.EntityNumber = TOHHNumber no-error. 
-    ToHHID = if available bufToSAHousehold then bufToSAHousehold.id else 0.
+    find first bufFromAccount no-lock where bufFromAccount.EntityNumber = FromHHNumber no-error.      
+    FromHHID = if available bufFromAccount then bufFromAccount.id else 0.
+    find first bufToAccount no-lock where bufToAccount.EntityNumber = TOHHNumber no-error. 
+    ToHHID = if available bufToAccount then bufToAccount.id else 0.
                                    
     create ChargeHistory.
     assign
@@ -1321,7 +1321,7 @@ procedure ProcessMerge:
                     then run DeleteSABlobFile (BinaryFile.id).        
                 else if available BufBlobfile then 
                     do:
-                        run DeleteSABlobFile (bufBlobfile.id).              
+                        run DeleteSABlobFile (bufBinaryFile.id).              
                         run UpdateSABlobFile (BinaryFile.id). 
                     end.
                     else run UpdateSABlobFile (BinaryFile.id).           
@@ -1435,8 +1435,8 @@ procedure ProcessMerge:
     end.  /*  CONVERT H/H ONLY TABLES IF DOING FULL MERGE OR TRANSFER END  */
     else 
     do: 
-        find first bufToSAHousehold no-lock where bufToSAHousehold.EntityNumber = TOHHNumber no-error.  
-        ToHHID = if available bufToSAHousehold then  bufToSAHousehold.id else 0.
+        find first bufToAccount no-lock where bufToAccount.EntityNumber = TOHHNumber no-error.  
+        ToHHID = if available bufToAccount then  bufToAccount.id else 0.
     end.   
     /****************************************************************************/
     /*  Convert all of the tables that have a family member link                */
@@ -1473,25 +1473,25 @@ procedure ProcessMerge:
                 do:
                     run WebUserNameAdjustments (Member.ID, bufMember.ID, Relationship.ID, bufRelationship.ID, MergeOption).
                     run FMAdjustments (Member.id, bufMember.id, MergeOption, no).   
-                    run UpdatebufSAPerson (rowid(bufMember)). 
-                    run RemoveSAPerson (Member.id, bufMember.id, Relationship.id).
+                    run UpdatebufMember (rowid(bufMember)). 
+                    run RemoveMember (Member.id, bufMember.id, Relationship.id).
                 end.
                 else run othersalinks(Member.id, bufMember.id, Relationship.id).
             end.
-            else run UpdateSALink2 (bufRelationship.id, Member.id, newLink).  
-            run DeleteSALink (Relationship.id).         
+            else run UpdateRelationship2 (bufRelationship.id, Member.id, newLink).  
+            run DeleteRelationship (Relationship.id).         
         end.
         if not available bufRelationship then 
         do:
             if Relationship.Primary then   
-                run UpdateSALink (Relationship.id, newlink, "").
+                run UpdateRelationship (Relationship.id, newlink, "").
             else
-                run UpdateSALink (Relationship.id, newlink, Relationship.Relationship).      
+                run UpdateRelationship (Relationship.id, newlink, Relationship.Relationship).      
         end.
-        for each SAHouseholdBenefits no-lock where 
-            SAHouseholdBenefits.HouseholdID = FromHHID and
-            SAHouseholdBenefits.QualifyingPersonID eq ttFamilyFrom.personID:
-            run UpdateSaHouseholdBenefits (rowid(SAHouseholdBenefits),input newId). 
+        for each AccountBenefits no-lock where 
+            AccountBenefits.HouseholdID = FromHHID and
+            AccountBenefits.QualifyingPersonID eq ttFamilyFrom.personID:
+            run UpdateAccountBenefits (rowid(AccountBenefits),input newId). 
         end.  /*  FOR EACH END  */ 
         if mergeoption eq "partialmerge" and ttFamilyFrom.isPrimary then
             run makeNextAvailablePersonPrimary.
@@ -1532,11 +1532,11 @@ procedure ProcessMerge:
                     run othersalinks(LSTeam.id, bufLSTeam.id, Relationship.ID).
             end.
             else
-                run UpdateSALink2 (bufRelationship.ID, LSTeam.ID, NewLink).  
-            run DeleteSALink (Relationship.ID).
+                run UpdateRelationship2 (bufRelationship.ID, LSTeam.ID, NewLink).  
+            run DeleteRelationship (Relationship.ID).
         end.
         if not available bufRelationship then
-            run UpdateSALink (Relationship.id, newlink, Relationship.Relationship).
+            run UpdateRelationship (Relationship.id, newlink, Relationship.Relationship).
    
         for each bufLSSchedule no-lock where bufLSSchedule.AwayTeamLinkID = ttTeamFrom.teamid:
             run updateLeagueLSSchedule(bufLSSchedule.ID, ToHHNumber, newId, "away", "teamLinkID").
@@ -1562,36 +1562,36 @@ procedure ProcessMerge:
     FromHHNumberupdt:
     do:
   
-        find first bufFromSAHousehold exclusive-lock where bufFromSAHousehold.EntityNumber = FromHHNumber no-error no-wait.
-        FromHHID = if availabl bufFromSAHousehold then bufFromSAHousehold.id else 0.
-        if not available bufFromSAHousehold then leave FromHHNumberupdt.
+        find first bufFromAccount exclusive-lock where bufFromAccount.EntityNumber = FromHHNumber no-error no-wait.
+        FromHHID = if availabl bufFromAccount then bufFromAccount.id else 0.
+        if not available bufFromAccount then leave FromHHNumberupdt.
        
         if MergeOption = "fullmerge" then assign
-                cc-link                         = bufFromSAHousehold.EPayLink
-                autopay-opt                     = bufFromSAHousehold.AutoPayBalance
-                bufFromSAHousehold.RewardPoints = 0.
+                cc-link                         = bufFromAccount.EPayLink
+                autopay-opt                     = bufFromAccount.AutoPayBalance
+                bufFromAccount.RewardPoints = 0.
   
         for each PaymentLog no-lock where 
-            PaymentLog.EntityNumber = bufFromSAHousehold.EntityNumber and
+            PaymentLog.EntityNumber = bufFromAccount.EntityNumber and
             PaymentLog.RecordType = "Rewards":
             assign 
-                bufFromSAHousehold.RewardPoints = bufFromSAHousehold.RewardPoints + PaymentLog.Amount.
+                bufFromAccount.RewardPoints = bufFromAccount.RewardPoints + PaymentLog.Amount.
         end.  /* FOR EACH END  */ 
       
         if MergeOption = "fullmerge" then assign
-                householdComments  = bufFromSAHousehold.comments
-                householdTicklers  = bufFromSAHousehold.TicklerText
-                housholdFeatures   = bufFromSAHousehold.Features
-                householdEmail     = bufFromSAHousehold.PrimaryEmailAddress
-                householdPhone     = bufFromSAHousehold.PrimaryPhoneNumber 
-                householdPhoneExt  = bufFromSAHousehold.PrimaryPhoneExtension 
-                householdPhoneType = bufFromSAHousehold.PrimaryPhoneType 
+                householdComments  = bufFromAccount.comments
+                householdTicklers  = bufFromAccount.TicklerText
+                housholdFeatures   = bufFromAccount.Features
+                householdEmail     = bufFromAccount.PrimaryEmailAddress
+                householdPhone     = bufFromAccount.PrimaryPhoneNumber 
+                householdPhoneExt  = bufFromAccount.PrimaryPhoneExtension 
+                householdPhoneType = bufFromAccount.PrimaryPhoneType 
                 hhid               = FromHHID.
   
         if MergeOption = "transfer" /*and ConflictCount = 0*/ then assign
-                bufFromSAHousehold.EntityNumber = ToHHNumber.   
+                bufFromAccount.EntityNumber = ToHHNumber.   
         else if MergeOption = "fullmerge" /*and ConflictCount = 0*/ and
-                FromHHNumber ne ToHHNumber then delete bufFromSAHousehold.
+                FromHHNumber ne ToHHNumber then delete bufFromAccount.
     
     end.  /*  FromHHNumberUPDT END  */    
   
@@ -1604,33 +1604,33 @@ procedure ProcessMerge:
         ToHHNumberupdt:
         do:
   
-            find first bufToSAHousehold exclusive-lock where bufToSAHousehold.EntityNumber = ToHHNumber no-error no-wait.
-            ToHHID = if available bufToSAHousehold then  bufToSAHousehold.id else 0.
+            find first bufToAccount exclusive-lock where bufToAccount.EntityNumber = ToHHNumber no-error no-wait.
+            ToHHID = if available bufToAccount then  bufToAccount.id else 0.
             if MergeOption = "fullmerge" then assign 
-                    bufToSAHousehold.AutoPayBalance = if bufToSAHousehold.EPayLink = 0 then autopay-opt else bufToSAHousehold.AutoPayBalance 
-                    bufToSAHousehold.EPayLink       = if bufToSAHousehold.EPayLink = 0 then cc-link else bufToSAHousehold.EPayLink.
+                    bufToAccount.AutoPayBalance = if bufToAccount.EPayLink = 0 then autopay-opt else bufToAccount.AutoPayBalance 
+                    bufToAccount.EPayLink       = if bufToAccount.EPayLink = 0 then cc-link else bufToAccount.EPayLink.
              
-            bufToSAHousehold.RewardPoints = 0.
+            bufToAccount.RewardPoints = 0.
   
             for each PaymentLog no-lock where 
-                PaymentLog.EntityNumber = bufToSAHousehold.EntityNumber and
+                PaymentLog.EntityNumber = bufToAccount.EntityNumber and
                 PaymentLog.RecordType = "Rewards":
                 assign 
-                    bufToSAHousehold.RewardPoints = bufToSAHousehold.RewardPoints + PaymentLog.Amount.
+                    bufToAccount.RewardPoints = bufToAccount.RewardPoints + PaymentLog.Amount.
             end.  /*  FOR EACH END  */ 
   
             if MergeOption = "fullmerge" then 
             do:
-                if lookup(householdComments,bufToSAHousehold.Comments) = 0 then assign
-                        bufToSAHousehold.Comments = bufToSAHousehold.Comments + (if householdComments ne "" then "  " else "") + householdComments.
+                if lookup(householdComments,bufToAccount.Comments) = 0 then assign
+                        bufToAccount.Comments = bufToAccount.Comments + (if householdComments ne "" then "  " else "") + householdComments.
   
-                if lookup(householdTicklers,bufToSAHousehold.TicklerText) = 0 then assign
-                        bufToSAHousehold.TicklerText = bufToSAHousehold.TicklerText + (if householdTicklers ne "" then "  " else "") + householdTicklers.
+                if lookup(householdTicklers,bufToAccount.TicklerText) = 0 then assign
+                        bufToAccount.TicklerText = bufToAccount.TicklerText + (if householdTicklers ne "" then "  " else "") + householdTicklers.
         
-                if bufToSAHousehold.PrimaryPhoneNumber = "" then assign
-                        bufToSAHousehold.PrimaryPhoneNumber    = householdPhone
-                        bufToSAHousehold.PrimaryPhoneExtension = householdPhoneExt
-                        bufToSAHousehold.PrimaryPhonetype      = householdPhonetype.
+                if bufToAccount.PrimaryPhoneNumber = "" then assign
+                        bufToAccount.PrimaryPhoneNumber    = householdPhone
+                        bufToAccount.PrimaryPhoneExtension = householdPhoneExt
+                        bufToAccount.PrimaryPhonetype      = householdPhonetype.
                 for each PhoneNumber no-lock where PhoneNumber.ParentRecord = hhid
                     and PhoneNumber.ParentTable = "Account":
                     for first BUFPhone no-lock where BUFPhone.ParentRecord = ToHHID and 
@@ -1639,28 +1639,28 @@ procedure ProcessMerge:
                         run purgesaphone (PhoneNumber.id).
                     end.  
                     if not available BUFPhone then
-                        run updatesaphone (PhoneNumber.id, ToHHID, if PhoneNumber.PhoneNumber = bufToSAHousehold.PrimaryPhoneNumber then yes else no).
+                        run updatesaphone (PhoneNumber.id, ToHHID, if PhoneNumber.PhoneNumber = bufToAccount.PrimaryPhoneNumber then yes else no).
                 end.
         
-                if bufToSAHousehold.PrimaryEmailAddress = "" then bufToSAHousehold.PrimaryEmailAddress = householdEmail.
+                if bufToAccount.PrimaryEmailAddress = "" then bufToAccount.PrimaryEmailAddress = householdEmail.
                 for each EmailContact no-lock where EmailContact.ParentRecord = hhid
                     and EmailContact.ParentTable = "Account":
                     for first BUFEmailAddress no-lock where BUFEmailAddress.ParentRecord = ToHHID and 
                         BufEmailAddress.ParentTable = "Account" and 
                         BufEmailAddress.EmailAddress = EmailContact.EmailAddress:
-                        run purgeSAEmailAddress (EmailContact.id).
+                        run purgeEmailContact (EmailContact.id).
                     end.  
                     if not available BUFEmailAddress then 
                     do: 
-                        run updateSAEmailAddress (EmailContact.id, ToHHID, if EmailContact.EmailAddress = 
-                            bufToSAHousehold.PrimaryEmailAddress then yes else no).
+                        run updateEmailContact (EmailContact.id, ToHHID, if EmailContact.EmailAddress = 
+                            bufToAccount.PrimaryEmailAddress then yes else no).
                     end.  
                 end.
 
                 if housholdFeatures ne "" then 
                 do ix = 1 to num-entries(housholdFeatures):
-                    if lookup(entry(ix,housholdFeatures),bufToSAHousehold.Features) = 0 then assign
-                            bufToSAHousehold.Features = bufToSAHousehold.Features + (if bufToSAHousehold.Features ne "" then "," else "") +
+                    if lookup(entry(ix,housholdFeatures),bufToAccount.Features) = 0 then assign
+                            bufToAccount.Features = bufToAccount.Features + (if bufToAccount.Features ne "" then "," else "") +
             entry(ix,housholdFeatures).
                 end.
             end.  /* FULL MERGE END */
@@ -1695,7 +1695,7 @@ procedure findconflict:
             ConflictSadetail.EntityNumber = ToHHNumber and 
             ConflictSadetail.PatronLinkID = newpatron and        
             ConflictSadetail.FileLinkid = ExistSadetail.filelinkid and
-            ConflictSADETAIL.BeginDateTime = ExistSadetail.BeginDateTime and 
+            ConflictTRANSACTIONDETAIL.BeginDateTime = ExistSadetail.BeginDateTime and 
             ConflictSadetail.CartStatus = "Complete"  and    
             ConflictSadetail.RecordStatus ne "Cancelled": 
             ConflictCount    = ConflictCount + 1.
@@ -1742,7 +1742,7 @@ procedure FMAdjustments:
     def var dup-found as log no-undo.
     def buffer bufImmunizationRecord     for ImmunizationRecord.
     def buffer bufEntityLink for EntityLink. 
-    def buffer bufBlobfile       for SABlobfile. 
+    def buffer bufBinaryFile       for BinaryFile. 
     
     for each Employee no-lock where Employee.MemberLinkID = InpOldId:
         run UpdateSAStaff (rowid(Employee), inpNewId).  
@@ -1786,7 +1786,7 @@ procedure FMAdjustments:
                 then run DeleteSABlobFile (BinaryFile.id).        
             else if available BufBlobfile then 
                 do:
-                    run DeleteSABlobFile (bufBlobfile.id).              
+                    run DeleteSABlobFile (bufBinaryFile.id).              
                     run UpdateSABlobFile2 (BinaryFile.id,inpoldid,inpnewid). 
                 end.
                 else run UpdateSABlobFile2 (BinaryFile.id,inpoldid,inpnewid).         
@@ -1845,7 +1845,7 @@ procedure FMAdjustments:
         Reversal.MemberLinkID = inpoldid:
         run UpdateSARefund2 (rowid(Reversal),inpnewid).          
     end.  /*  FOR EACH END  */
-    saxref-loop:
+    entitylink-loop:
     for each EntityLink no-lock where  
         EntityLink.MemberLinkID = inpoldid:         
 
@@ -1930,7 +1930,7 @@ procedure updateDetails:
 
 end procedure.
 
-procedure UpdateSAEmergencyContact:
+procedure updateEmergencyContact:
   
     def input parameter row1 as rowid.
   
@@ -1950,7 +1950,7 @@ procedure UpdateSAEmergencyContact:
 
 end procedure. 
 
-procedure updateLeagueSALink:
+procedure updateLeagueRelationship:
     def input parameter inpid as int64 no-undo.
     def input parameter newlinkid as int64 no-undo.
     def buffer buf-Relationship for Relationship.
@@ -2010,7 +2010,7 @@ procedure UpdateEPayInfo:
 
 end procedure. 
 
-procedure UpdateSACreditCardHistory:
+procedure updateCardTransactionLog:
   
     def input parameter row1 as rowid.
   
@@ -2023,7 +2023,7 @@ procedure UpdateSACreditCardHistory:
 
 end procedure.
 
-procedure UpdateSADocument:
+procedure updateDocument:
   
     def input parameter inp1 as int64 no-undo.
   
@@ -2038,7 +2038,7 @@ procedure UpdateSADocument:
 
 end procedure. 
 
-procedure UpdateSABlobFile:
+procedure updateBinaryFile:
 
     def input parameter inp1 as int64 no-undo.
 
@@ -2062,7 +2062,7 @@ procedure UpdateSABlobFile:
 
 end procedure.
 
-procedure DeleteSABlobFile:
+procedure deleteBinaryFile:
 
     def input parameter inp1 as int64 no-undo.
 
@@ -2084,7 +2084,7 @@ procedure DeleteSABlobFile:
 
 end procedure.
 
-procedure UpdateSAHouseholdAddress:
+procedure updateMailingAddress:
   
     def input parameter row1 as rowid.
   
@@ -2317,7 +2317,7 @@ procedure UpdateWebWishList:
 
 end procedure. 
 
-procedure UpdateSaHouseholdBenefits:
+procedure UpdateAccountBenefits:
   
     def input parameter row1 as rowid.
     def input parameter newId as int64.
@@ -2398,7 +2398,7 @@ procedure UpdateSAStaff:
     def input parameter NEWLinkID as int64 no-undo.
   
     def buffer buf-Employee    for Employee.
-    def buffer BufSAhousehold for Account.
+    def buffer BufAccount for Account.
   
     do for buf-Employee transaction:     
         find buf-Employee exclusive-lock where rowid(buf-Employee) = row1 no-error no-wait.
@@ -2409,17 +2409,17 @@ procedure UpdateSAStaff:
 
             if ChangeStaffInfo then 
             do:
-                find BufSAhousehold no-lock where BufSAhousehold.EntityNumber = ToHHNumber no-error.
-                if available BufSAhousehold then assign
-                        buf-Employee.Address1              = BufSAhousehold.PrimaryAddress1
-                        buf-Employee.Address2              = BufSAhousehold.PrimaryAddress2
-                        buf-Employee.City                  = BufSAhousehold.PrimaryCity
-                        buf-Employee.State                 = BufSAhousehold.PrimaryState
-                        buf-Employee.ZipCode               = BufSAhousehold.PrimaryZipcode
-                        buf-Employee.PrimaryPhoneNumber    = BufSAhousehold.PrimaryPhoneNumber
-                        buf-Employee.PrimaryPhoneExtension = BufSAhousehold.PrimaryPhoneExtension
-                        buf-Employee.PrimaryPhoneType      = BufSAhousehold.PrimaryPhoneType
-                        buf-Employee.PrimaryEmailAddress   = if buf-Employee.PrimaryEmailAddress = "" then BufSAhousehold.PrimaryEmailAddress else buf-Employee.PrimaryEmailAddress.
+                find BufAccount no-lock where BufAccount.EntityNumber = ToHHNumber no-error.
+                if available BufAccount then assign
+                        buf-Employee.Address1              = BufAccount.PrimaryAddress1
+                        buf-Employee.Address2              = BufAccount.PrimaryAddress2
+                        buf-Employee.City                  = BufAccount.PrimaryCity
+                        buf-Employee.State                 = BufAccount.PrimaryState
+                        buf-Employee.ZipCode               = BufAccount.PrimaryZipcode
+                        buf-Employee.PrimaryPhoneNumber    = BufAccount.PrimaryPhoneNumber
+                        buf-Employee.PrimaryPhoneExtension = BufAccount.PrimaryPhoneExtension
+                        buf-Employee.PrimaryPhoneType      = BufAccount.PrimaryPhoneType
+                        buf-Employee.PrimaryEmailAddress   = if buf-Employee.PrimaryEmailAddress = "" then BufAccount.PrimaryEmailAddress else buf-Employee.PrimaryEmailAddress.
             end.
         end.
     end.
@@ -2726,7 +2726,7 @@ procedure DeleteSACrossReference:
 
 end procedure. 
 
-procedure UpdateSALink2:
+procedure UpdateRelationship2:
   
     def input parameter inpid1 as int64 no-undo.
     def input parameter inpid2 as int64 no-undo.
@@ -2743,7 +2743,7 @@ procedure UpdateSALink2:
 
 end procedure. 
 
-procedure UpdateSALink3:
+procedure UpdateRelationship3:
   
     def input parameter inpID as int64 no-undo. 
     def input parameter inpTOID as int64 no-undo. 
@@ -2762,7 +2762,7 @@ procedure UpdateSALink3:
     end.
 
 end procedure. 
-procedure UpdateSALink:
+procedure UpdateRelationship:
   
     def input parameter inpID as int64 no-undo. 
     define input parameter linkOrder as int no-undo.
@@ -2781,7 +2781,7 @@ procedure UpdateSALink:
     end.
 end procedure. 
 
-procedure DeleteSALink:
+procedure DeleteRelationship:
     def input parameter inpid as int64 no-undo.
     def buffer buf-Relationship for Relationship.
   
@@ -2808,7 +2808,7 @@ procedure othersalinks:
 
 end procedure. 
 
-procedure RemoveSAPerson:
+procedure RemoveMember:
   
     def input parameter InpRemoveId as int64 no-undo.
     def input parameter InpToId as int64 no-undo.
@@ -2835,7 +2835,7 @@ procedure RemoveSAPerson:
                 "ID Value = " + trueval(string(buf-Member.id)),
                 "Person Combined With = "  + trueval(bufNew-Member.firstname) + " " + trueval(bufNew-Member.lastname) + 
                 ", ID Value = " + trueval(string(bufNew-Member.id)),
-                "DeletedSAPerson").
+                "DeletedMember").
             delete buf-Member.
         end.
     end.
@@ -2874,7 +2874,7 @@ procedure RemoveLSTeam:
 
 end procedure. 
 
-procedure UpdatebufSAPerson:
+procedure UpdatebufMember:
   
     def input parameter row1 as rowid.
   
@@ -2931,16 +2931,16 @@ procedure UpdatebufSAPerson:
             for first buf-EmailContact no-lock where buf-EmailContact.ParentRecord = newid and 
                 buf-EmailContact.ParentTable = "Member" and 
                 buf-EmailContact.EmailAddress = EmailContact.EmailAddress:
-                run purgeSAEmailAddress (EmailContact.id).
+                run purgeEmailContact (EmailContact.id).
             end.
             if not available buf-EmailContact then 
-                run updateSAEmailAddress (EmailContact.id, NewID, if EmailContact.EmailAddress = primePhone then yes else no).
+                run updateEmailContact (EmailContact.id, NewID, if EmailContact.EmailAddress = primePhone then yes else no).
         end.
     
     end.
 end procedure.
 
-procedure updateSAEmailAddress:
+procedure updateEmailContact:
     def input parameter inpid as int64 no-undo.
     def input parameter newinpid as int64 no-undo.
     def input parameter prime as log.
@@ -2968,7 +2968,7 @@ procedure updateSAPrimaryEmailAddress:
     end.
 end procedure.
 
-procedure purgeSAEmailAddress:
+procedure purgeEmailContact:
     def input parameter inpid as int64 no-undo.
     def buffer buf-EmailContact for EmailContact.
   
@@ -3054,7 +3054,7 @@ procedure UpdateSaFeeHistoryStartingBalanceRecords:
             ChargeHistory.RecordStatus eq "Starting Balance" and
             ChargeHistory.ParentRecord eq FromHHID and 
             ChargeHistory.ParentTable eq "Account":
-            run DeleteSAFeeHistory (rowid(ChargeHistory)).  
+            run deleteChargeHistory (rowid(ChargeHistory)).  
         end.    
         run CreateSAFeeHistory (FromHHID, FromHHNumber).
     end.
@@ -3063,7 +3063,7 @@ procedure UpdateSaFeeHistoryStartingBalanceRecords:
         ChargeHistory.RecordStatus eq "Starting Balance" and
         ChargeHistory.ParentRecord eq ToHHID and 
         ChargeHistory.ParentTable eq "Account":
-        run DeleteSAFeeHistory (rowid(ChargeHistory)).  
+        run deleteChargeHistory (rowid(ChargeHistory)).  
     end.  
             
     run CreateSAFeeHistory (ToHHID, ToHHNumber).    
@@ -3142,13 +3142,13 @@ end procedure.
 procedure WebUserNameAdjustments:
     define input parameter i_fromPersonID as int64 no-undo.
     define input parameter i_toPersonID as int64 no-undo.
-    define input parameter i_fromSALinkID as int64 no-undo.
+    define input parameter i_fromRelationshipID as int64 no-undo.
     define input parameter i_toSalinkID as int64 no-undo.
     define input parameter i_mergeOption as char no-undo.
   
     define buffer bufFromWebUserName for WebUserName.
     define buffer bufToWebUserName   for WebUserName.
-    define buffer bufToSALink        for Relationship.
+    define buffer bufToRelationship        for Relationship.
   
     find first bufFromWebUserName no-lock where bufFromWebUserName.ParentRecord = i_fromPersonID no-error.
     find first bufToWebUserName no-lock where bufToWebUserName.ParentRecord = i_toPersonID no-error.
@@ -3170,11 +3170,11 @@ procedure WebUserNameAdjustments:
         do:
             /* if "To" person doesn't have a webusername, keep the "from" webusername, just update the WebUserName record */
             run UpdateWebUserNameParentID(rowid(bufFromWebUsername), i_toPersonID).
-            do for bufToSALink transaction:
+            do for bufToRelationship transaction:
                 /* If from person has webusername but to doesn't, take away "account management" of to person if they aren't primary,
                    and activate the account since the Relationship record will be different */
-                find first bufToSALink exclusive-lock where bufToSALink.ID = i_toSalinkID no-wait no-error.
-                if available bufTOSALink then 
+                find first bufToRelationship exclusive-lock where bufToRelationship.ID = i_toSalinkID no-wait no-error.
+                if available bufTORelationship then 
                 do:
                     if bufTOSalink.Relationship = "Primary Guardian" then bufTOSalink.WebPermissions = "Account Management".
                     else bufTOSalink.WebPermissions = "".

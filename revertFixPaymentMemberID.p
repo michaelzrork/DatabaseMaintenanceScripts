@@ -216,7 +216,7 @@ procedure revertPaymentHistory:
     end.
 end procedure.
 
-/*REVERT SAPERSON SCHOLARSHIP AMOUNT*/
+/*REVERT MEMBER SCHOLARSHIP AMOUNT*/
 procedure revertScholarshipAmount:
     define input parameter inpID as int64 no-undo.
     define input parameter revertedAmount as decimal no-undo.

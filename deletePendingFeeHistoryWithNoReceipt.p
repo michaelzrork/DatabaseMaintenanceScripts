@@ -104,7 +104,7 @@ run put-stream ("Household Number,
 // ChargeHistory Loop
 for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Pending" and ChargeHistory.Receiptnumber = 0:
     
-    // FIND LINKED SAFEE, SADETAIL, AND SACONTRACT FOR LOG FILES
+    // FIND LINKED CHARGE, TRANSACTIONDETAIL, AND SACONTRACT FOR LOG FILES
     find first Charge no-lock where Charge.ID = ChargeHistory.ParentRecord no-error no-wait.
     if available Charge then find first TransactionDetail no-lock where TransactionDetail.ID = Charge.ParentRecord no-error no-wait.
     if available TransactionDetail then find first Agreement no-lock where Agreement.ID = TransactionDetail.ContractID no-error no-wait.
@@ -128,15 +128,15 @@ for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Pending" and 
         contractDescription = if available Agreement then replace(Agreement.ShortDescription,",","") else "Agreement Record Not Available".
     
     
-    // DELETE THE PENDING SAFEEHISTORY RECORD     
+    // DELETE THE PENDING CHARGEHISTORY RECORD     
     run deletePendingFee(feeHistID).
     
-    // DELETE THE OTHER SAFEEHISTORY RECORDS LINKED TO THE SAME SAFEE RECORD AS THE PENDING FEE, AS THEY ARE ALSO BAD
+    // DELETE THE OTHER CHARGEHISTORY RECORDS LINKED TO THE SAME CHARGE RECORD AS THE PENDING FEE, AS THEY ARE ALSO BAD
     // DO NOT DELETE PAID, BILLED, OR ACCRUED RECORDS
     run deleteRelatedFees(feeHistID).
     
-    // CHANGE THE SAFEE TO 'NOCHARGE' AS THEY SHOULD HAVE BEEN IN THE FIRST PLACE
-    // BY STARTING WITH THE PENDING FEES WITH A 0 RECEIPT, WE ENSURE WE ARE NOT CHANGING ANY SAFEES THAT WERE INTENTIONALLY SELECTED
+    // CHANGE THE CHARGE TO 'NOCHARGE' AS THEY SHOULD HAVE BEEN IN THE FIRST PLACE
+    // BY STARTING WITH THE PENDING FEES WITH A 0 RECEIPT, WE ENSURE WE ARE NOT CHANGING ANY CHARGES THAT WERE INTENTIONALLY SELECTED
     if Charge.RecordStatus = "Charge" then run updateSAFee(feeID).
     
 end.
@@ -258,7 +258,7 @@ procedure deleteRelatedFees:
 end procedure.
 
 // UPDATE FEE
-procedure updateSAFee:
+procedure updateCharge:
     define input parameter inpID as int64 no-undo.
     define buffer bufCharge for Charge.
     do for bufCharge transaction:

@@ -29,14 +29,14 @@ define variable personFirstName          as character no-undo.
 define variable personLastName           as character no-undo.
 define variable canFindFM                as log       no-undo.
 define variable canFindHH                as log       no-undo.
-define variable numSALinksDeleted        as integer   no-undo.
-define variable fixedSALinkCount         as integer   no-undo.
+define variable numRelationshipsDeleted        as integer   no-undo.
+define variable fixedRelationshipCount         as integer   no-undo.
 define variable numFMDeleted             as integer   no-undo.
 define variable numHHDeleted             as integer   no-undo.
 
 assign
-    numSALinksDeleted   = 0
-    fixedSALinkCount    = 0
+    numRelationshipsDeleted   = 0
+    fixedRelationshipCount    = 0
     numFMDeleted        = 0
     numHHDeleted        = 0
     primaryGuardianCode = TrueVal(ProfileChar("Static Parameters","PrimeGuardSponsorCode")).
@@ -84,18 +84,18 @@ for each Member no-lock:
     if not available Relationship then 
     do:
         find first TransactionDetail no-lock where TransactionDetail.PatronLinkID = Member.ID no-error no-wait.
-        if not available TransactionDetail then run deleteSAPerson(Member.ID).
+        if not available TransactionDetail then run deleteMember(Member.ID).
     end.
 end.
 
-// SALINK LOOP
-salink-loop:
+// RELATIONSHIP LOOP
+relationship-loop:
 for each Relationship no-lock where Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
     find first Account no-lock where Account.ID = Relationship.ParentTableID no-error no-wait.
-    if available Account then next salink-loop.
+    if available Account then next relationship-loop.
     find first Member no-lock where Member.ID = Relationship.ChildTableID no-error no-wait.
-    if available Member then next salink-loop.
-    if not available Account and not available Member then run deleteSALink(Relationship.ID).
+    if available Member then next relationship-loop.
+    if not available Account and not available Member then run deleteRelationship(Relationship.ID).
 end.
   
     // CREATE LOG FILE
@@ -112,23 +112,23 @@ run ActivityLog ("Deleted Orphaned Account, Member, and Relationship records").
                             INTERNAL PROCEDURES
 *************************************************************************/ 
 
-// DELETE SALINK
-procedure deleteSALink:
+// DELETE RELATIONSHIP
+procedure deleteRelationship:
     define input parameter inpid as int64 no-undo.
     define buffer bufRelationship for Relationship.
     do for bufRelationship transaction:
         find bufRelationship exclusive-lock where bufRelationship.ID = inpid no-error no-wait.
         if available bufRelationship then 
         do:
-            numSALinksDeleted = numSALinksDeleted + 1.
+            numRelationshipsDeleted = numRelationshipsDeleted + 1.
             run put-stream ("Relationship" + "," + string(bufRelationship.ID) + "," + "~"Parent Table: " + bufRelationship.ParentTable + ", Parent Table ID: " + string(bufRelationship.ParentTableID) + ", Child Table: " + bufRelationship.ChildTable + ", Child Table ID: " + string(bufRelationship.ChildTableID) + "~",").
             delete bufRelationship.
         end.
     end.
 end procedure.
 
-// DELETE SAPERSON
-procedure deleteSAPerson:
+// DELETE MEMBER
+procedure deleteMember:
     define input parameter inpID as int64 no-undo.
     define buffer bufMember for Member.
     do for bufMember transaction:
@@ -143,7 +143,7 @@ procedure deleteSAPerson:
 end.
 
 // DELETE ORPHAN HOUSEHOLD
-procedure deleteSAHousehold:
+procedure deleteAccount:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.
     do for bufAccount transaction:

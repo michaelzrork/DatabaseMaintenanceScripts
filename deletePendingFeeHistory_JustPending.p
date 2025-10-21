@@ -45,7 +45,7 @@ run put-stream ("Household Number,ChargeHistory.ID,ChargeHistory.RecordStatus,Ch
 
 // ChargeHistory Loop
 for each ChargeHistory no-lock where ChargeHistory.RecordStatus = "Pending" and Receiptnumber = 0 and ChargeHistory.PaymentHousehold = 1069246:
-    run deleteSAFeeHistory(ChargeHistory.ID).
+    run deleteChargeHistory(ChargeHistory.ID).
 end.
   
 // CREATE LOG FILE
@@ -62,7 +62,7 @@ run ActivityLog.
 *************************************************************************/ 
 
 // DELETE FEE HISTORY RECORD
-procedure deleteSAFeeHistory:
+procedure deleteChargeHistory:
     define input parameter inpID as int64 no-undo.
     define buffer bufChargeHistory for ChargeHistory.
     do for bufChargeHistory transaction:

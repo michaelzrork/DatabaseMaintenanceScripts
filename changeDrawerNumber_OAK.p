@@ -16,11 +16,11 @@
 *************************************************************************/
 
 define variable newDrawer    as integer no-undo.
-define variable SAReceiptNum as integer no-undo.
+define variable PaymentReceiptNum as integer no-undo.
 
 assign
     newDrawer    = 0
-    SAReceiptNum = 0.
+    PaymentReceiptNum = 0.
 
 /*************************************************************************
                                 MAIN BLOCK
@@ -60,13 +60,13 @@ procedure updateDrawers:
         do:
             create ActivityLog.
             assign
-                SAActivityLog.UserName      = "SYSTEM"
-                SAActivityLog.LogDate       = today
+                ActivityLog.UserName      = "SYSTEM"
+                ActivityLog.LogDate       = today
                 ActivityLog.Logtime       = time  
-                SAActivityLog.SourceProgram = "ChangeDrawerNumber.r"
+                ActivityLog.SourceProgram = "ChangeDrawerNumber.r"
                 ActivityLog.Detail1       = "Receipt Number: " + string(receiptMatch)
                 ActivityLog.Detail2       = "Drawer Change: " + string(PaymentReceipt.DrawerNumber) + " ==> " + string(newDrawer).
-            run fixSAReceiptDrawer(PaymentReceipt.ID).
+            run fixPaymentReceiptDrawer(PaymentReceipt.ID).
         end.
     end.
     
@@ -76,10 +76,10 @@ procedure updateDrawers:
         do:
             create ActivityLog.
             assign
-                SAActivityLog.UserName      = "SYSTEM"
-                SAActivityLog.LogDate       = today
+                ActivityLog.UserName      = "SYSTEM"
+                ActivityLog.LogDate       = today
                 ActivityLog.Logtime       = time  
-                SAActivityLog.SourceProgram = "ChangeDrawerNumber.r"
+                ActivityLog.SourceProgram = "ChangeDrawerNumber.r"
                 ActivityLog.Detail1       = "Receipt number " + string(receiptMatch) + " is in use. Receipt skipped.".
         end.
                  
@@ -87,10 +87,10 @@ procedure updateDrawers:
         do:
             create ActivityLog.
             assign
-                SAActivityLog.UserName      = "SYSTEM"
-                SAActivityLog.LogDate       = today
+                ActivityLog.UserName      = "SYSTEM"
+                ActivityLog.LogDate       = today
                 ActivityLog.Logtime       = time  
-                SAActivityLog.SourceProgram = "ChangeDrawerNumber.r"
+                ActivityLog.SourceProgram = "ChangeDrawerNumber.r"
                 ActivityLog.Detail1       = "Receipt number " + string(receiptMatch) + " could not be found. Receipt skipped.".
         end.
             
@@ -98,27 +98,27 @@ procedure updateDrawers:
     end.
     
     for each LedgerEntry no-lock where LedgerEntry.ReceiptNumber = receiptMatch:
-        if LedgerEntry.CashDrawer <> newDrawer then run fixSAGLDistributionDrawer(LedgerEntry.ID).
+        if LedgerEntry.CashDrawer <> newDrawer then run fixLedgerEntryDrawer(LedgerEntry.ID).
     end.
 
     for each PaymentTransaction no-lock where PaymentTransaction.ReceiptNumber = receiptMatch:
-        if PaymentTransaction.CashDrawer <> newDrawer then run fixSAReceiptPaymentDrawer(PaymentTransaction.ID).
+        if PaymentTransaction.CashDrawer <> newDrawer then run fixPaymentTransactionDrawer(PaymentTransaction.ID).
     end.
 
     for each AccountBalanceLog no-lock where AccountBalanceLog.ReceiptNumber = receiptMatch:
-        if AccountBalanceLog.CashDrawer <> newDrawer then run fixSAControlAccountHistoryDrawer(AccountBalanceLog.ID).
+        if AccountBalanceLog.CashDrawer <> newDrawer then run fixAccountBalanceLogDrawer(AccountBalanceLog.ID).
     end.
 
     for each ChargeHistory no-lock where ChargeHistory.ReceiptNumber = receiptMatch:
-        if ChargeHistory.CashDrawer <> newDrawer then run fixSAFeeHistoryDrawer(ChargeHistory.ID).
+        if ChargeHistory.CashDrawer <> newDrawer then run fixChargeHistoryDrawer(ChargeHistory.ID).
     end.
 
     for each PaymentLog no-lock where PaymentLog.ReceiptNumber = receiptMatch:
-        if PaymentLog.DrawerNumber <> newDrawer then run fixSAPaymentHistoryDrawer(PaymentLog.ID).
+        if PaymentLog.DrawerNumber <> newDrawer then run fixPaymentLogDrawer(PaymentLog.ID).
     end.
     
     for each CardTransactionLog no-lock where CardTransactionLog.ReceiptNumber = receiptMatch:
-        if CardTransactionLog.CashDrawer <> newDrawer then run fixSACreditCardHistoryDrawer(CardTransactionLog.ID).
+        if CardTransactionLog.CashDrawer <> newDrawer then run fixCardTransactionLogDrawer(CardTransactionLog.ID).
     end.    
 
 end procedure.
@@ -142,7 +142,7 @@ procedure fixSAReceiptDrawer:
     do for bufPaymentReceipt transaction:
         find first bufPaymentReceipt exclusive-lock where bufPaymentReceipt.ID = inpID no-error no-wait.
         if available bufPaymentReceipt then assign
-                SAReceiptNum              = SAReceiptNum + 1
+                PaymentReceiptNum              = PaymentReceiptNum + 1
                 bufPaymentReceipt.DrawerNumber = newDrawer.
     end.
 end.
@@ -214,6 +214,6 @@ procedure ActivityLog:
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Change drawer number program complete"
-            BufActivityLog.Detail2       = "Number of Receipts updated: " + string(SAReceiptNum).
+            BufActivityLog.Detail2       = "Number of Receipts updated: " + string(PaymentReceiptNum).
     end.
 end procedure.

@@ -36,7 +36,7 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-procedure purgeSAAddress:
+procedure purgeMailingAddress:
     define input parameter inpid as int64.
     define buffer bufMailingAddress for MailingAddress.
     do for bufMailingAddress transaction:
@@ -49,7 +49,7 @@ procedure purgeSAAddress:
     end.
 end procedure.
 
-procedure purgeSAHouseholdAddress:
+procedure purgeMailingAddress:
     define input parameter inpid as int64.
     define buffer bufAccountAddress for AccountAddress.
     do for bufAccountAddress transaction:

@@ -60,7 +60,7 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// FIX SADETAIL STATUS
+// FIX TRANSACTIONDETAIL STATUS
 procedure fixStatus:
     define input parameter inpID as int64 no-undo.
     define buffer bufTransactionDetail for TransactionDetail.

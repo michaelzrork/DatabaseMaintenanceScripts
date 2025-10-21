@@ -548,7 +548,7 @@ procedure sessionEnd:
     end.
     /* ***************************  Main Block  *************************** */
 
-    run Business/SpecialSessionEnd.p (sessionid, yes).
+    run Business/EndSession.p  /* External session management */ (sessionid, yes).
 
     find first UserSession exclusive-lock where UserSession.SessionID = sessionid no-error no-wait.
     if available UserSession then assign
@@ -604,7 +604,7 @@ procedure put-stream:
     output stream ex-port close.
 end procedure.
 
-// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY SADETAIL RECORDS WERE CHANGED
+// CREATE AUDIT LOG ENTRY DISPLAYING HOW MANY TRANSACTIONDETAIL RECORDS WERE CHANGED
 procedure ActivityLog:
     define input parameter logDescription as character no-undo.
     define input parameter logDetail as character no-undo.

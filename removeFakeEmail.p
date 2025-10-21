@@ -52,10 +52,10 @@ assign
                                 MAIN BLOCK
 *************************************************************************/
 
-// CREATE SAEMAILADDRESS LOG FILE FIELDS
+// CREATE EMAILCONTACT LOG FILE FIELDS
 run put-stream ("RecordID,Table,EmailAddress,PrimaryEmailAddress,HouseholdNumber,ParentTable,HouseholdID,PersonID,MiscInformation,WordIndex,SubType,SiteCode,SiteArea,SiteCategory,Permissions").
 
-// DELETE SAEMAILADDRESS RECORDS
+// DELETE EMAILCONTACT RECORDS
 for each EmailContact no-lock where EmailContact.EmailAddress matches "*x*@x*" or EmailContact.Emailaddress matches "*@x*x*":
     hhNum = 0.
     hhID = 0.
@@ -67,33 +67,33 @@ for each EmailContact no-lock where EmailContact.EmailAddress matches "*x*@x*" o
         for first Relationship no-lock where Relationship.ParentTable = "Account" and Relationship.ChildTableID = EmailContact.MemberLinkID and Relationship.ChildTable = "SAperson":
             hhID = Relationship.ParentTableID.
             find first Account no-lock where Account.ID = hhID no-error no-wait.
-            if available SAhousehold then hhNum = Account.EntityNumber.
+            if available Account then hhNum = Account.EntityNumber.
         end.
-    // DELETE THE SAEMAILADDRESS RECORDS
-    run deleteSAEmailAddressRecord(EmailContact.ID).
+    // DELETE THE EMAILCONTACT RECORDS
+    run deleteEmailContactRecord(EmailContact.ID).
 end.
 
-// REMOVE SAHOUSEHOLD EMAIL ADDRESSES
+// REMOVE ACCOUNT EMAIL ADDRESSES
 for each Account no-lock where Account.Primaryemailaddress matches "*x*@x*" or Account.Primaryemailaddress matches "*@x*x*":
     personID = 0.
     for first Relationship no-lock where Relationship.ParentTable = "Account" and Relationship.ParentTableID = Account.ID and Relationship.Primary = true and Relationship.ChildTable = "SAperson":
         personID = Relationship.ChildTableID.
     end.
     // REMOVE THE EMAIL FROM THE HOUSEHOLD RECORD
-    run removeSAHouseholdEmail(Account.ID).
+    run removeAccountEmail(Account.ID).
 end.
 
-// REMOVE SAPERSON EMAIL ADDRESSES
+// REMOVE MEMBER EMAIL ADDRESSES
 for each Member no-lock where Member.Primaryemailaddress matches "*x*@x*" or Member.Primaryemailaddress matches "*@x*x*":
     hhID = 0.
     hhNum = 0.
     for first Relationship no-lock where Relationship.ParentTable = "Account" and Relationship.ChildTableID = Member.ID and Relationship.ChildTable = "SAperson":
         hhID = Relationship.ParentTableID.
         find first Account no-lock where Account.ID = hhID no-error no-wait.
-        if available SAhousehold then hhNum = Account.EntityNumber.
+        if available Account then hhNum = Account.EntityNumber.
     end.
     // REMOVE THE EMAIL FROM THE FAMILY MEMBER
-    run removeSAPersonEmail(Member.ID).
+    run removeMemberEmail(Member.ID).
 end.
   
 // CREATE LOG FILE
@@ -110,7 +110,7 @@ run ActivityLog.
 *************************************************************************/
 
 // REMOVE THE PERSON EMAIL ADDRESS
-procedure removeSAPersonEmail:
+procedure removeMemberEmail:
     define input parameter inpid as int64 no-undo.
     define buffer bufMember for Member.
     do for bufMember transaction:
@@ -133,7 +133,7 @@ procedure removeSAPersonEmail:
 end. 
 
 // REMOVE THE HOUSEHOLD EMAIL ADDRESS
-procedure removeSAHouseholdEmail:
+procedure removeAccountEmail:
     define input parameter inpid as int64 no-undo.
     define buffer bufAccount for Account.
     do for bufAccount transaction:
@@ -156,7 +156,7 @@ procedure removeSAHouseholdEmail:
 end. 
 
 // DELETE THE EMAIL ADDRESS RECORD
-procedure deleteSAEmailAddressRecord:
+procedure deleteEmailContact:
     define input parameter inpid as int64 no-undo.
     define buffer bufEmailContact for EmailContact.
     do for bufEmailContact transaction:
@@ -168,7 +168,7 @@ procedure deleteSAEmailAddressRecord:
             run put-stream (string(bufEmailContact.ID) + ",EmailContact," + string(bufEmailContact.EmailAddress) + "," + string(bufEmailContact.PrimaryEmailAddress) + "," + (if hhNum > 0 then string(hhNum) else "") + "," + string(bufEmailContact.ParentTable) + "," + (if bufEmailContact.ParentTable = "Account" then string(bufEmailContact.ParentRecord) else "") + "," + string(bufEmailContact.MemberLinkID) + "," + string(bufEmailContact.MiscInformation) + "," + string(bufEmailContact.WordIndex) + string(bufEmailContact.SubType) + string(bufEmailContact.SiteCode) + string(bufEmailContact.SiteArea) + string(bufEmailContact.SiteCategory) + string(bufEmailContact.Permissions)).
             // ADD TO NUMBER OF EMAILS DELETED COUNT 
             numEmailsDeleted = numEmailsDeleted + 1.
-            // DELETE THE SAEMAILADDRESS TABLE RECORD
+            // DELETE THE EMAILCONTACT TABLE RECORD
             delete bufEmailContact.
         end.
     end.

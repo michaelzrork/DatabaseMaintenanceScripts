@@ -72,7 +72,7 @@ assign
 // CREATE LOG FILE FIELDS
 run put-stream ("Record ID,Table,Member ID,First Name,Last Name,Original Phone Number,Original Phone Type,Original Phone Ext,New Phone Number,New Phone Type,New Phone Ext,").
 
-// SYNC SAPERSON EMAIL WITH SAHOUSEHOLD IF OUT OF SYNC
+// SYNC MEMBER EMAIL WITH ACCOUNT IF OUT OF SYNC
 for each Relationship no-lock where Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
     assign 
         hhID        = 0
@@ -107,7 +107,7 @@ run ActivityLog.
                             INTERNAL PROCEDURES
 *************************************************************************/
 
-// SYNC SAHOUSEHOLD PHONE TO Account PHONE
+// SYNC ACCOUNT PHONE TO Account PHONE
 procedure syncPhoneNum:
     define input parameter inpID as int64 no-undo.
     define buffer bufAccount for Account.

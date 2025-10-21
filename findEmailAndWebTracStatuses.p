@@ -112,7 +112,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
         assign
             oHouseholdBO = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
             oPersonBO    = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO      = oPersonBO:GetLinkToRecord(oHouseholdBO:Household).  /* GRABS THE SALINK OBJECT */
+            oLinkBO      = oPersonBO:GetLinkToRecord(oHouseholdBO:Household).  /* GRABS THE RELATIONSHIP OBJECT */
                    
         if not valid-object(oHouseholdBO) or not valid-object(oPersonBO) or not valid-object(oLinkBO) then next member-loop.
         

@@ -1,6 +1,6 @@
 /*------------------------------------------------------------------------
     File        : findNoFeeRecords.p
-    Purpose     : Find any SAFEEHistory record with a record status of "No Fee", then find any Charge record
+    Purpose     : Find any CHARGEHistory record with a record status of "No Fee", then find any Charge record
                   linked to the same receipt with a status of Charge that does not have a linked ChargeHistory
                   record also with a status of Charge. If there is no ChargeHistory record available, log the fee.
 
@@ -11,7 +11,7 @@
     Author(s)   : michaelzr
     Created     : 7/23/24
     Notes       : - THIS IS ATTEMPTING TO RESEARCH A BUG WHERE ITEMS ARE ADDED TO CART FOR $0 THAT SHOULD HAVE A FEE AMOUNT
-                  - IN MOST CASES, THE SAFEE IS ADDED WITH A RECORDSTATUS OF CHARGE, BUT NO SAFEEHISTORY RECORD WITH A RECORDSTATUS OF CHARGE WAS CREATED
+                  - IN MOST CASES, THE CHARGE IS ADDED WITH A RECORDSTATUS OF CHARGE, BUT NO CHARGEHISTORY RECORD WITH A RECORDSTATUS OF CHARGE WAS CREATED
                     INSTEAD, A RECORD IS CREATED THAT IS LINKED TO THE RECEIPT, BUT NOT THE FEE, WITH A RECORD STATUS OF "NO FEE"
   ----------------------------------------------------------------------*/
 
@@ -121,7 +121,7 @@ procedure findUnchargedFees:
     find first bufChargeHistory no-lock where bufChargeHistory.ID = inpID no-error no-wait.
     if available bufChargeHistory then 
     do: 
-        // FIND THE SADETAIL RECORD FOR THE FEEHISTORY RECORD
+        // FIND THE TRANSACTIONDETAIL RECORD FOR THE FEEHISTORY RECORD
         for first TransactionDetail no-lock where TransactionDetail.ID = ChargeHistory.ParentRecord:
             assign
                 hhNum = if TransactionDetail.EntityNumber = ? then 0 else TransactionDetail.EntityNumber.
@@ -130,7 +130,7 @@ procedure findUnchargedFees:
             if TransactionDetail.Module = "PMV" then return.
         
             fee-loop:
-            // FIND ALL SAFEE RECORDS WITH A STATUS OF CHARGE FOR THE SAME ITEM AS THE NO FEE RECORD
+            // FIND ALL CHARGE RECORDS WITH A STATUS OF CHARGE FOR THE SAME ITEM AS THE NO FEE RECORD
             for each Charge no-lock where Charge.ParentRecord = ChargeHistory.ParentRecord and Charge.RecordStatus = "Charge" and Charge.ReceiptNumber = ChargeHistory.ReceiptNumber and lookup(Charge.FeeType,"Installment Bill Fee,Standard Fee") > 0 and Charge.Amount > 0:
             
                 assign
@@ -138,12 +138,12 @@ procedure findUnchargedFees:
                     chargeFeeFeeGroupCode = if Charge.FeeGroupCode = "" then "No Fee Group" else getString(Charge.FeeGroupCode)
                     chargeFeeDueOption    = if Charge.DueOption = "" then "No Due Option" else getString(Charge.DueOption).
                 
-                // IF THERE IS FEE HISTORY WITH A CHARGE, PAID, BILLED, OR UNBILLED STATUS MOVE TO THE NEXT SAFEE RECORD
+                // IF THERE IS FEE HISTORY WITH A CHARGE, PAID, BILLED, OR UNBILLED STATUS MOVE TO THE NEXT CHARGE RECORD
                 for first bufChargeHistory no-lock where bufChargeHistory.ParentRecord = Charge.ID and lookup(bufChargeHistory.RecordStatus,"Charge,Paid,Billed,Unbilled") > 0:
                     next fee-loop.
                 end.
             
-                // IF NO CHARGE TYPE SAFEEHISTORY RECORD IS FOUND, LOOK FOR ANOTHER FEE WITH THE SAME PARENTID AND CLONEID ON THE SAME RECEIPT 
+                // IF NO CHARGE TYPE CHARGEHISTORY RECORD IS FOUND, LOOK FOR ANOTHER FEE WITH THE SAME PARENTID AND CLONEID ON THE SAME RECEIPT 
                 for each bufCharge no-lock where bufCharge.ID <> Charge.ID and bufCharge.ParentRecord = Charge.ParentRecord and bufCharge.CloneID = Charge.CloneID and bufCharge.ReceiptNumber = Charge.ReceiptNumber:
                     for first bufChargeHistory no-lock where bufChargeHistory.ParentRecord = Charge.ID and lookup(bufChargeHistory.RecordStatus,"Charge,Paid,Billed,Unbilled") > 0:
                         next fee-loop.
@@ -166,7 +166,7 @@ procedure findUnchargedFees:
                 // IF FEE HISTORY HAS BEEN FOUND  AND LOGGED, MOVED TO NEXT FEE
                 if hasFeeHistory = true then next fee-loop.
             
-                // IF NO SAFEEHISTORY RECORDS ARE FOUND, AND NO DUPLICATE FEE RECORDS ARE FOUND, LOG THE FEE RECORD AS AN UNCHARGED FEE
+                // IF NO CHARGEHISTORY RECORDS ARE FOUND, AND NO DUPLICATE FEE RECORDS ARE FOUND, LOG THE FEE RECORD AS AN UNCHARGED FEE
                 assign 
                     numRecsWithoutHistory = numRecsWithoutHistory + 1.
                 run put-stream (string(hhNum) + "," + string(noFeeID) + "," + noFeeLogDate + "," + string(noFeeReceiptNumber) + ",~"" + noFeeUsername + "~"," + string(TransactionDetail.ID) + ",~"" + getString(TransactionDetail.Description) + "~"," + string(Charge.ID) + ",~"" + getString(Charge.Description) + "~"," + getString(Charge.FeeType) + ",~"" + getString(Charge.TransactionType) + "~",~"" + chargeFeeFeeGroupCode + "~"," + getString(Charge.MinimumPaymentOption) + "," + chargeFeeDueOption + "," + string(Charge.Amount) + "," + "0" + "," + "No ChargeHistory Record" + "," + "Charge Charge Found with no ChargeHistory,").

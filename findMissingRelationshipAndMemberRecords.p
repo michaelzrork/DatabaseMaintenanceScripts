@@ -1,5 +1,5 @@
 /*------------------------------------------------------------------------
-    File        : findMissingSALinkAndSAPersonRecords.p
+    File        : findMissingRelationshipAndMemberRecords.p
     Purpose     : 
 
     Syntax      : 
@@ -36,9 +36,9 @@ assign
 // EVERYTHING ELSE
 define variable numRecs    as integer no-undo.
 define variable hasPrimary as logical no-undo.
-define variable hasSALink  as logical no-undo.
+define variable hasRelationship  as logical no-undo.
 assign
-    hasSALink  = false
+    hasRelationship  = false
     hasPrimary = false
     numRecs    = 0.
 
@@ -55,25 +55,25 @@ for each Account no-lock:
 
     assign 
         hasPrimary = false
-        hasSALink  = false.
+        hasRelationship  = false.
         
     for each Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.ParentTable = "Account" and Relationship.ChildTable = "Member":
         assign 
-            hasSALink = true.
+            hasRelationship = true.
         if Relationship.Primary = true then assign hasPrimary = true.
         find first Member no-lock where Member.ID = Relationship.ChildTableID no-error no-wait.
         if not available Member then run put-stream ("Missing Member" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + "," + string(Relationship.ChildTableID) + ",").
     end.
     
-    if hasSALink = false then run put-stream ("Missing Any HH Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
-    if hasSALink = true and hasPrimary = false then run put-stream ("Missing Primary HH Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
+    if hasRelationship = false then run put-stream ("Missing Any HH Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
+    if hasRelationship = true and hasPrimary = false then run put-stream ("Missing Primary HH Relationship" + "," + string(Account.ID) + "," + string(Account.EntityNumber) + "," + replace(Account.FirstName + " " + Account.LastName,",","") + "," + string(Account.CreationDate) + "," + Account.CreationUserName + ",,"). 
 
 end.
   
 // CREATE LOG FILE
 do ixLog = 1 to inpfile-num:
-    if search(sessiontemp() + "findMissingSALinkAndSAPersonRecordsLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(ixLog) + ".csv") <> ? then 
-        SaveFileToDocuments(sessiontemp() + "findMissingSALinkAndSAPersonRecordsLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(ixLog) + ".csv", "\Reports\", "", no, yes, yes, "Report").  
+    if search(sessiontemp() + "findMissingRelationshipAndMemberRecordsLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(ixLog) + ".csv") <> ? then 
+        SaveFileToDocuments(sessiontemp() + "findMissingRelationshipAndMemberRecordsLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(ixLog) + ".csv", "\Reports\", "", no, yes, yes, "Report").  
 end.
 
 // CREATE AUDIT LOG RECORD
@@ -86,7 +86,7 @@ run ActivityLog.
 // CREATE LOG FILE
 procedure put-stream:
     def input parameter inpfile-info as char no-undo.
-    inpfile-loc = sessiontemp() + "findMissingSALinkAndSAPersonRecordsLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(inpfile-num) + ".csv".
+    inpfile-loc = sessiontemp() + "findMissingRelationshipAndMemberRecordsLog" + "_" + replace(string(logfileDate),"/","-") + "_" + string(logfileTime) + "_" + string(inpfile-num) + ".csv".
     output stream ex-port to value(inpfile-loc) append.
     inpfile-info = inpfile-info + "".
   
@@ -106,11 +106,11 @@ procedure ActivityLog:
     do for BufActivityLog transaction:
         create BufActivityLog.
         assign
-            BufActivityLog.SourceProgram = "findMissingSALinkAndSAPersonRecords.r"
+            BufActivityLog.SourceProgram = "findMissingRelationshipAndMemberRecords.r"
             BufActivityLog.LogDate       = today
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Find missing Relationship and Member records"
-            BufActivityLog.Detail2       = "Check Document Center for findMissingSALinkAndSAPersonRecordsLog for a log of Records Found".
+            BufActivityLog.Detail2       = "Check Document Center for findMissingRelationshipAndMemberRecordsLog for a log of Records Found".
     end.
 end procedure.

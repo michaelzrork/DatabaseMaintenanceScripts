@@ -91,7 +91,7 @@ assign
 disable triggers for load of EmailContact.
 
 /* CREATE LOG FILE FIELDS */
-run put-stream ("Record ID,Table,SAPeson.ID,First Name,Last Name,Original Email,New Email,Primary Email").
+run put-stream ("Record ID,Table,Member.ID,First Name,Last Name,Original Email,New Email,Primary Email").
 
 /* GOES THROUGH EVERY PERSON IN THE DATABASE, REGARDLESS OF EMAIL ADDRESS STATUS */
 Member-loop:
@@ -123,7 +123,7 @@ for each Member no-lock:
     /* CHECK TO SEE IF EMAIL ADDRESS IS BLANK OR IF THE DOMAIN IS ON THE EMAIL DOMAIN LIST */
     if Member.PrimaryEmailAddress = "" or (Member.PrimaryEmailAddress <> "" and (lookup(substring(Member.PrimaryEmailAddress,atPosition),emailDomainList) > 0 or lookup(Member.PrimaryEmailAddress,fullEmailList) > 0 or lookup(firstHalf,firstHalfList) > 0)) then
     do:
-        /* IF FAMILY MEMBER HAS NO FIRST AND LAST NAME OR ORGANIZATION NAME, LOOK FOR A HOUSEHOLD ORGANIZATION NAME; WE ARE NOT CHECKING THE SAPERSON.ORGANIZATION NAME, AS THIS IS OFTEN USED FOR SILVER SNEAKERS */
+        /* IF FAMILY MEMBER HAS NO FIRST AND LAST NAME OR ORGANIZATION NAME, LOOK FOR A HOUSEHOLD ORGANIZATION NAME; WE ARE NOT CHECKING THE MEMBER.ORGANIZATION NAME, AS THIS IS OFTEN USED FOR SILVER SNEAKERS */
         if Member.FirstName = "" and Member.LastName = "" then run orgCheck(Member.ID).
         /* CREATE NEW EMAIL ADDRESS USING FIRSTNAME.LASTNAME OR FAMILY MEMBER ORGANIZATION  */
         if hhOrg = false then newEmailAddress = lc(
@@ -141,7 +141,7 @@ for each Member no-lock:
         do ixSpecialCharList = 1 to num-entries(specialCharacterList):
             newEmailAddress = replace(newEmailAddress,entry(ixSpecialCharList,specialCharacterList),"").
         end.
-        /* CHANGE SAPERSON EMAIL ADDRESS */
+        /* CHANGE MEMBER EMAIL ADDRESS */
         if originalEmail <> newEmailAddress then run changePersonEmailAddress(Member.ID).
         /* IF PERSON IS A PRIMARY, UPDATE HOUSEHOLD */
         if isPrimary = true then 
@@ -188,7 +188,7 @@ procedure orgCheck:
         for first bufAccount no-lock where bufAccount.ID = bufRelationship.ParentTableID and bufAccount.OrganizationName <> "":
             assign
                 hhOrg           = true
-                newEmailAddress = lc(bufSAhousehold.OrganizationName) + newDomain.
+                newEmailAddress = lc(bufAccount.OrganizationName) + newDomain.
         end.
     end.
 end.
@@ -201,14 +201,14 @@ procedure changePersonEmailAddress:
     define buffer bufEmailContact for EmailContact.
     do for bufMember transaction:
         find first bufMember exclusive-lock where bufMember.ID = inpID no-error no-wait.
-        /* SET SAPERSON EMAIL ADDRESS */
+        /* SET MEMBER EMAIL ADDRESS */
         if available bufMember then 
         do:
             run put-stream (string(bufMember.ID) + "," + "Member" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).
             fmRecs = fmRecs + 1.
             bufMember.PrimaryEmailAddress = newEmailAddress.
        
-        /* UPDATE SAEMAILADDRESS RECORD */
+        /* UPDATE EMAILCONTACT RECORD */
             for first bufEmailContact exclusive-lock where bufEmailContact.ParentTable = "Member" and bufEmailContact.PrimaryEmailAddress = true and bufEmailContact.MemberLinkID = bufMember.ID: 
                 do:
                     run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).
@@ -222,7 +222,7 @@ procedure changePersonEmailAddress:
                         bufEmailContact.OptIn                = false.
                 end.
             end.
-            if not available bufEmailContact then run createSAEmailAddress(bufMember.ID,"Member",newEmailAddress,familyMemberID).
+            if not available bufEmailContact then run createEmailContact(bufMember.ID,"Member",newEmailAddress,familyMemberID).
         end.
     end.
 end.
@@ -231,10 +231,10 @@ end.
 procedure changeHouseholdEmailAddress:
     define input parameter inpID as int64 no-undo.
     define variable dtNow as datetime no-undo.
-    define buffer bufAccount    for SAhousehold.
+    define buffer bufAccount    for Account.
     define buffer bufEmailContact for EmailContact.
     do for bufAccount transaction:
-        /* SET SAHOUSEHOLD EMAIL ADDRESS */
+        /* SET ACCOUNT EMAIL ADDRESS */
         find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
         if available bufAccount then 
         do:
@@ -242,7 +242,7 @@ procedure changeHouseholdEmailAddress:
             hhRecs = hhRecs + 1.
             bufAccount.PrimaryEmailAddress = newEmailAddress.
        
-        /* UPDATE SAEMAILADDRESS RECORD */
+        /* UPDATE EMAILCONTACT RECORD */
             for first bufEmailContact exclusive-lock where bufEmailContact.ParentTable = "Account" and bufEmailContact.PrimaryEmailAddress = true and bufEmailContact.ParentRecord = inpID:
                 run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).         
                 assign
@@ -254,7 +254,7 @@ procedure changeHouseholdEmailAddress:
                     bufEmailContact.LastVerifiedDateTime = dtNow
                     bufEmailContact.OptIn                = false.
             end.
-            if not available bufEmailContact then run createSAEmailAddress(bufAccount.ID,"Account",newEmailAddress,familyMemberID).
+            if not available bufEmailContact then run createEmailContact(bufAccount.ID,"Account",newEmailAddress,familyMemberID).
         end. 
     end.
 end.
@@ -274,8 +274,8 @@ procedure deleteSecondaryEmail:
     end.
 end.
 
-/* CREATE MISSING SAEMAILADDRESS RECORDS */
-procedure createSAEmailaddress:
+/* CREATE MISSING EMAILCONTACT RECORDS */
+procedure createEmailContact:
     define input parameter i64ParentID as int64 no-undo.
     define input parameter cParentTable as character no-undo.
     define input parameter cEmailAddress as character no-undo.

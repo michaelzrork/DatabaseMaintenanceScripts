@@ -165,7 +165,7 @@ function getGLDistID returns int64 (inpID as int64):
         if available bufPaymentTransaction then find first bufChargeHistory no-lock where bufChargeHistory.ID = bufPaymentTransaction.ParentRecord no-error no-wait.
         if available bufChargeHistory then 
         do: 
-            /* FOR RECORDS WITH A SPECIAL LINK TABLE OF SACONTROLACCOUNTHISTORY BECAUSE THESE WILL NOT HAVE AN SAFEEHISTORY.ParentRecord */
+            /* FOR RECORDS WITH A SPECIAL LINK TABLE OF SACONTROLACCOUNTHISTORY BECAUSE THESE WILL NOT HAVE AN CHARGEHISTORY.ParentRecord */
             if bufPaymentTransaction.SpecialLinkTable = "AccountBalanceLog" then 
             do:
                 find first bufAccountBalanceLog no-lock where bufAccountBalanceLog.ID = bufPaymentTransaction.SpecialLinkID no-error no-wait.
@@ -222,7 +222,7 @@ function getGLDistID returns int64 (inpID as int64):
                     end.
             end.
             
-            /* FOR RECORDS WHERE THE SAFEEHISTORY.ParentRecord WILL POINT TO AN SAFEE RECORD */
+            /* FOR RECORDS WHERE THE CHARGEHISTORY.ParentRecord WILL POINT TO AN CHARGE RECORD */
             else 
             do:
                 if bufChargeHistory.ParentRecord <> 0 then find first bufCharge no-lock where bufCharge.ID = bufChargeHistory.ParentRecord no-error no-wait.

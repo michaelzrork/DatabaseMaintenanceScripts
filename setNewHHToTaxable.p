@@ -91,7 +91,7 @@ procedure updateHouseholdTaxable:
             assign 
                 bufAccount.Taxable = true
                 numHHupdated           = numHHupdated + 1.
-            run put-stream ("~"" + string(bufAccount.ID) + "~",~"" + string(bufAccount.EntityNumber) + "~",~"" + trim(getString(bufAccount.FirstName) + (if getString(bufSAhousehold.FirstName) = "" then "" else " ") + getString(bufAccount.LastName)) + "~",~"" + getString(string(bufAccount.CreationDate)) + "~",~"" + (if bufAccount.Taxable = true then "Yes" else "No") + "~",").
+            run put-stream ("~"" + string(bufAccount.ID) + "~",~"" + string(bufAccount.EntityNumber) + "~",~"" + trim(getString(bufAccount.FirstName) + (if getString(bufAccount.FirstName) = "" then "" else " ") + getString(bufAccount.LastName)) + "~",~"" + getString(string(bufAccount.CreationDate)) + "~",~"" + (if bufAccount.Taxable = true then "Yes" else "No") + "~",").
         end.
     end.
 end procedure.

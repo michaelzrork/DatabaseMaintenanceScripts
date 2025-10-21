@@ -205,7 +205,7 @@ procedure revertReceipt:
     end.
 end procedure.
 
-// RESTORE SADETAIL FULLY PAID STATUS
+// RESTORE TRANSACTIONDETAIL FULLY PAID STATUS
 procedure revertDetail:
     define input parameter inpID as int64 no-undo.
     define input parameter origValue as logical no-undo.

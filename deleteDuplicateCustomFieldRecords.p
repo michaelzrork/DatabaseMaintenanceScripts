@@ -94,7 +94,7 @@ procedure findDuplicateProfileField:
 end procedure.
 
 // DELETE SAPROFILEFIELD
-procedure deleteSAProfileField:
+procedure deleteCustomField:
     define input parameter inpID as int64 no-undo.
     define input parameter originalID as int64 no-undo.
     define buffer bufCustomField for CustomField.

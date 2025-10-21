@@ -50,8 +50,8 @@ assign
 *************************************************************************/
 
 // FIND ALL CUSTOM HOUSEHOLD UPDATE SCREEN DESIGN FIELDS WITH A VALUE OF NO
-for each FormDefinition no-lock where FormDefinition.ScreenName = "SAHouseholdUpdate" and FormDefinition.FieldName = "SAHousehold_Taxable":
-    for first FieldConfig no-lock where FieldConfig.ParentRecord = FormDefinition.ID and FieldConfig.FieldName = "SAHousehold_Taxable" and FieldConfig.ParamName = "FieldValue":
+for each FormDefinition no-lock where FormDefinition.ScreenName = "AccountUpdate" and FormDefinition.FieldName = "Account_Taxable":
+    for first FieldConfig no-lock where FieldConfig.ParentRecord = FormDefinition.ID and FieldConfig.FieldName = "Account_Taxable" and FieldConfig.ParamName = "FieldValue":
         if FieldConfig.ParamValue = "No" then run updateTaxable(FieldConfig.ID).
     end.
     if not available FieldConfig then run createTaxable(FormDefinition.ID).
@@ -89,14 +89,14 @@ procedure updateTaxable:
     end.
 end procedure.
 
-// CREATE SAFIELDPARAM RECORDS FOR SAHOUSEHOLD_TAXABLE FIELDVALUE
+// CREATE SAFIELDPARAM RECORDS FOR ACCOUNT_TAXABLE FIELDVALUE
 procedure createTaxable:
     define input parameter xParentID as int64 no-undo.
     define buffer bufFieldConfig for FieldConfig.
     do for bufFieldConfig transaction:
         create bufFieldConfig.
         assign
-            bufFieldConfig.FieldName  = "SAHousehold_Taxable"
+            bufFieldConfig.FieldName  = "Account_Taxable"
             bufFieldConfig.ParamName  = "FieldValue"
             bufFieldConfig.ParamValue = "Yes"
             bufFieldConfig.Interface  = "RecTrac"
@@ -106,7 +106,7 @@ procedure createTaxable:
             numNewRecs                 = numNewRecs + 1.
         create bufFieldConfig.
         assign
-            bufFieldConfig.FieldName  = "SAHousehold_Taxable"
+            bufFieldConfig.FieldName  = "Account_Taxable"
             bufFieldConfig.ParamName  = "FilterValue"
             bufFieldConfig.ParamValue = "No"
             bufFieldConfig.Interface  = "RecTrac"
@@ -127,7 +127,7 @@ procedure updateHouseholdTaxable:
             assign 
                 bufAccount.Taxable = true
                 numHHupdated           = numHHupdated + 1.
-            run put-stream ("~"" + string(bufAccount.ID) + "~",~"" + string(bufAccount.EntityNumber) + "~",~"" + trim(getString(bufAccount.FirstName) + (if getString(bufSAhousehold.FirstName) = "" then "" else " ") + getString(bufAccount.LastName)) + "~",~"" + getString(string(bufAccount.CreationDate)) + "~",~"" + (if bufAccount.Taxable = true then "Yes" else "No") + "~",").
+            run put-stream ("~"" + string(bufAccount.ID) + "~",~"" + string(bufAccount.EntityNumber) + "~",~"" + trim(getString(bufAccount.FirstName) + (if getString(bufAccount.FirstName) = "" then "" else " ") + getString(bufAccount.LastName)) + "~",~"" + getString(string(bufAccount.CreationDate)) + "~",~"" + (if bufAccount.Taxable = true then "Yes" else "No") + "~",").
         end.
     end.
 end procedure.

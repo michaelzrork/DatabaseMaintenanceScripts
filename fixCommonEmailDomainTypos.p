@@ -33,10 +33,10 @@ define variable ix                as integer   no-undo.
 define variable emailRecs         as integer   no-undo.
 define variable secondaryRecs     as integer   no-undo.
 define variable newEmailRecs      as integer   no-undo.
-define variable hhRecs            as integer   no-undo.
-define variable syncedHHEmails    as integer   no-undo.
+define variable accountRecs       as integer   no-undo.
+define variable syncedAccountEmails as integer   no-undo.
 define variable syncedEmails      as integer   no-undo.
-define variable fmRecs            as integer   no-undo.
+define variable memberRecs        as integer   no-undo.
 define variable domainCheck       as log       no-undo.
 define variable gmailDomainList   as character no-undo.
 define variable yahooDomainList   as character no-undo.
@@ -65,15 +65,15 @@ assign
     newEmailAddress   = ""
     ix                = 0
     ixLog             = 0
-    inpfile-num       = 1
-    familyMemberID    = 0
-    fmRecs            = 0
-    hhRecs            = 0
-    syncedHHEmails    = 0
-    syncedEmails      = 0
-    emailRecs         = 0
-    newEmailRecs      = 0
-    secondaryRecs     = 0
+    inpfile-num         = 1
+    familyMemberID      = 0
+    memberRecs          = 0
+    accountRecs         = 0
+    syncedAccountEmails = 0
+    syncedEmails        = 0
+    emailRecs           = 0
+    newEmailRecs        = 0
+    secondaryRecs       = 0
     domainCheck       = false
     isPrimaryEmail    = true
     firstHalf         = ""
@@ -90,7 +90,7 @@ assign
 disable triggers for load of EmailContact.
 
 // CREATE LOG FILE FIELDS
-run put-stream ("Record ID,Table,SAPeson.ID,First Name,Last Name,Original Email,New Email,Primary Email").
+run put-stream ("Record ID,Table,Member.ID,First Name,Last Name,Original Email,New Email,Primary Email").
 
 // FIND ANY PERSON WITH AN EMAIL ADDRESS
 Member-loop:
@@ -118,11 +118,11 @@ for each Member no-lock where Member.PrimaryEmailAddress <> "":
         assign
             firstHalf       = substring(Member.PrimaryEmailAddress,1,atPosition - 1)
             newEmailAddress = firsthalf + newDomain.
-        // CHANGE SAPERSON EMAIL ADDRESS
+        // CHANGE MEMBER EMAIL ADDRESS
         run changePersonEmailAddress(familyMemberID).
-        // IF PERSON IS A PRIMARY, UPDATE HOUSEHOLD
+        // IF MEMBER IS A PRIMARY GUARDIAN, UPDATE ACCOUNT
         for each Relationship no-lock where Relationship.ChildTableID = familyMemberID and Relationship.ChildTable = "Member" and Relationship.ParentTable = "Account" and Relationship.Primary = true:
-            run changeHouseholdEmailAddress(Relationship.ParentTableID).
+            run changeAccountEmailAddress(Relationship.ParentTableID).
         end.   
     end.
         
@@ -204,16 +204,16 @@ procedure changePersonEmailAddress:
     define buffer bufEmailContact for EmailContact.
     do for bufMember transaction:
         find first bufMember exclusive-lock where bufMember.ID = inpID no-error no-wait.
-        // SET SAPERSON EMAIL ADDRESS
-        if available bufMember then 
+        // SET MEMBER EMAIL ADDRESS
+        if available bufMember then
         do:
             // CREATE LOG ENTRY
             run put-stream (string(bufMember.ID) + "," + "Member" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).
-            assign 
-                fmRecs                          = fmRecs + 1
+            assign
+                memberRecs                      = memberRecs + 1
                 bufMember.PrimaryEmailAddress = newEmailAddress.
-        
-        // UPDATE SAEMAILADDRESS RECORD
+
+        // UPDATE EMAILCONTACT RECORD
             for first bufEmailContact exclusive-lock where bufEmailContact.ParentTable = "Member" and bufEmailContact.PrimaryEmailAddress = true and bufEmailContact.MemberLinkID = bufMember.ID:
                 // CREATE LOG ENTRY
                 run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).
@@ -221,28 +221,28 @@ procedure changePersonEmailAddress:
                     emailRecs                      = emailRecs + 1
                     bufEmailContact.EmailAddress = newEmailAddress.
             end.
-            if not available bufEmailContact then run createSAEmailAddress(bufMember.ID,"Member",newEmailAddress,familyMemberID).
+            if not available bufEmailContact then run createEmailContact(bufMember.ID,"Member",newEmailAddress,familyMemberID).
         end.
     end.
 end.
 
-// UPDATE HOUSEHOLD EMAIL ADDRESS
-procedure changeHouseholdEmailAddress:
+// UPDATE ACCOUNT EMAIL ADDRESS
+procedure changeAccountEmailAddress:
     define input parameter inpID as int64 no-undo.
-    define buffer bufAccount    for SAhousehold.
+    define buffer bufAccount    for Account.
     define buffer bufEmailContact for EmailContact.
     do for bufAccount transaction:
-        // SET SAHOUSEHOLD EMAIL ADDRESS
+        // SET ACCOUNT EMAIL ADDRESS
         find first bufAccount exclusive-lock where bufAccount.ID = inpID no-error no-wait.
-        if available bufAccount then 
+        if available bufAccount then
         do:
             // CREATE LOG ENTRY "Match,Fields,To,Headers"
             run put-stream (string(bufAccount.ID) + "," + "Account" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).
-            assign 
-                hhRecs                             = hhRecs + 1
+            assign
+                accountRecs                        = accountRecs + 1
                 bufAccount.PrimaryEmailAddress = newEmailAddress.
-        
-        // UPDATE SAEMAILADDRESS RECORD
+
+        // UPDATE EMAILCONTACT RECORD
             for first bufEmailContact exclusive-lock where bufEmailContact.ParentTable = "Account" and bufEmailContact.PrimaryEmailAddress = true and bufEmailContact.ParentRecord = inpID:
                 // CREATE LOG ENTRY "Match,Fields,To,Headers"
                 run put-stream (string(bufEmailContact.ID) + "," + "EmailContact" + "," + string(familyMemberID) + "," + personFirstName + "," + personLastName + "," + originalEmail + "," + newEmailAddress + "," + (if isPrimaryEmail = true then "Primary" else "Secondary")).
@@ -250,7 +250,7 @@ procedure changeHouseholdEmailAddress:
                     emailRecs                      = emailRecs + 1
                     bufEmailContact.EmailAddress = newEmailAddress.
             end.
-            if not available bufEmailContact then run createSAEmailAddress(bufAccount.ID,"Account",newEmailAddress,familyMemberID).
+            if not available bufEmailContact then run createEmailContact(bufAccount.ID,"Account",newEmailAddress,familyMemberID).
         end.
     end.
 end.
@@ -272,8 +272,8 @@ procedure changeSecondaryEmailAddress:
     end.
 end.
 
-// CREATE MISSING SAEMAILADDRESS RECORDS
-procedure createSAEmailaddress:
+// CREATE MISSING EMAILCONTACT RECORDS
+procedure createEmailContact:
     define input parameter i64ParentID as int64 no-undo.
     define input parameter cParentTable as character no-undo.
     define input parameter cEmailAddress as character no-undo.
@@ -328,8 +328,8 @@ procedure ActivityLog:
             BufActivityLog.LogTime       = time
             BufActivityLog.UserName      = "SYSTEM"
             BufActivityLog.Detail1       = "Fix typos in common email address domains"
-            BufActivityLog.Detail2       = "Member Domains Fixed: " + string(fmRecs)
-            bufActivityLog.Detail3       = "Account Domains Fixed: " + string(hhRecs)
+            BufActivityLog.Detail2       = "Member Domains Fixed: " + string(memberRecs)
+            bufActivityLog.Detail3       = "Account Domains Fixed: " + string(accountRecs)
             bufActivityLog.Detail4       = "Primary EmailContact Domains Fixed: " + string(emailRecs)
             bufActivityLog.Detail5       = "EmailContact Records Created: " + string(newEmailRecs)
             bufActivityLog.Detail6       = "Secondary EmailContact Domains Fixed: " + string(secondaryRecs).

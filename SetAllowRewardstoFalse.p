@@ -56,7 +56,7 @@ if startDate = ? then startDate = 01/01/1985.
 // CREATE LOG FILE FIELDS
 run put-stream ("Household Number,Original Rewards Status,Household Creation Date").
 
-for each SAhousehold no-lock where Account.AllowRewards = true and Account.CreationDate ge startDate:
+for each Account no-lock where Account.AllowRewards = true and Account.CreationDate ge startDate:
     run setRewardstoFalse(Account.ID).
 end.
 
@@ -75,7 +75,7 @@ run ActivityLog.
 // SET ALL RECORDS TO ALLOW REWARDS: FALSE
 procedure setRewardstoFalse:
     define input parameter inpid as int64 no-undo.
-    define buffer bufAccount for SAhousehold.
+    define buffer bufAccount for Account.
     do for bufAccount transaction:
         find bufAccount exclusive-lock where bufAccount.ID = inpid no-error no-wait.
         if available bufAccount then 
@@ -84,7 +84,7 @@ procedure setRewardstoFalse:
             run put-stream (string(bufAccount.EntityNumber) + "," + string(bufAccount.AllowRewards) + "," + string(bufAccount.CreationDate)).
             assign
                 recordCount                 = recordCount + 1
-                bufSAhousehold.AllowRewards = false.
+                bufAccount.AllowRewards = false.
         end.
     end. // DO FOR
 end procedure.

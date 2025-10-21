@@ -73,7 +73,7 @@ for each ChargeHistory no-lock where ChargeHistory.PaymentHousehold = hhNum and 
         do:
             assign 
                 isFullyPaid = TransactionDetail.FullyPaid.
-            // IF THERE IS ANOTHER FEE ASSOCIATED WITH THIS SADETAIL RECORD THAT ISN'T A DISCOUNT, SKIP IT 
+            // IF THERE IS ANOTHER FEE ASSOCIATED WITH THIS TRANSACTIONDETAIL RECORD THAT ISN'T A DISCOUNT, SKIP IT 
             for first bufCharge no-lock where bufCharge.ParentRecord = Charge.ParentRecord and not bufCharge.FeeType begins "Discount":
                 assign 
                     numSkippedDiscounts = numSkippedDiscounts + 1.
@@ -165,7 +165,7 @@ procedure clearFeeHistAmount:
     end.
 end procedure.
 
-// SET SADETAIL RECORD TO FULLY PAID
+// SET TRANSACTIONDETAIL RECORD TO FULLY PAID
 procedure setFullyPaid:
     define input parameter inpID as int64 no-undo.
     define buffer bufTransactionDetail for TransactionDetail.

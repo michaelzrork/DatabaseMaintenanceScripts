@@ -57,31 +57,31 @@ for each Account no-lock:
     if householdEmail = "" or householdEmail = ? then next householdLoop.
     
     // FIND ALL FAMILY MEMBERS IN THE HOUSEHOLD THAT ARE NOT SET AS PRIMARY
-    SALinkLoop:
+    RelationshipLoop:
     for each Relationship no-lock where Relationship.ParentTableID = Account.ID and Relationship.ChildTable = "Member" and Relationship.Primary = false and Relationship.RecordType = "Household":
         
         // CHECK TO SEE IF FAMILY MEMBER IS PRIMARY IN ANOTHER HOUSEHOLD
         primaryCheck = false.
         run checkForPrimary(Relationship.ChildTableID).
-        if primaryCheck = true then next SALinkLoop.
+        if primaryCheck = true then next RelationshipLoop.
         
         // FILTER FAMILY MEMBERS TO JUST THE ONES THAT HAVE THE SAME EMAIL ADDRESS AS THE PRIMARY
         find first Member no-lock where Member.ID = Relationship.ChildTableID and Member.PrimaryEmailAddress = householdEmail no-error no-wait.
         if available Member then do:
             
             // REMOVE THE DUPLICATE EMAIL FROM THE FAMILY MEMBER
-            run removeDupelicateSAPersonEmail(Member.ID).
+            run removeDupelicateMemberEmail(Member.ID).
             
-            // FIND ALL OF THE SAEMAILADDRESS RECORDS LINKED TO THAT FAMILY MEMBER
+            // FIND ALL OF THE EMAILCONTACT RECORDS LINKED TO THAT FAMILY MEMBER
             for each EmailContact no-lock where EmailContact.ParentRecord = Member.ID and EmailContact.EmailAddress = householdEmail and EmailContact.ParentTable = "Member":
                 
-                // DELETE THE SAEMAILADDRESS RECORDS
-                run deleteSAEmailAddressRecord(EmailContact.ID).
+                // DELETE THE EMAILCONTACT RECORDS
+                run deleteEmailContactRecord(EmailContact.ID).
                 
-            end. // FOR EACH SAEMAILADDRESS
-        end. // IF AVAILABLE SAPERSON
-    end. // FOR EACH SALINK
-end. // FOR EACH SAHOUSEHOLD
+            end. // FOR EACH EMAILCONTACT
+        end. // IF AVAILABLE MEMBER
+    end. // FOR EACH RELATIONSHIP
+end. // FOR EACH ACCOUNT
 
 do ix = 1 to inpfile-num:
   if search(sessiontemp() + "EmailRecordsUpdated" + string(ix) + ".csv") <> ? then 
@@ -102,7 +102,7 @@ procedure checkForPrimary:
 end procedure.
 
 // REMOVE THE DUPLICATE EMAIL ADDRESS
-procedure removeDupelicateSAPersonEmail:
+procedure removeDuplicateMemberEmail:
     define input parameter inpid as int64 no-undo.
     define buffer bufMember for Member.
     do for bufMember transaction:
@@ -124,7 +124,7 @@ procedure removeDupelicateSAPersonEmail:
 end. 
 
 // DELETE THE EMAIL ADDRESS RECORD
-procedure deleteSAEmailAddressRecord:
+procedure deleteEmailContact:
     define input parameter inpid as int64 no-undo.
     define buffer bufEmailContact for EmailContact.
     do for bufEmailContact transaction:
@@ -134,7 +134,7 @@ procedure deleteSAEmailAddressRecord:
             run put-stream (string(bufEmailContact.ParentRecord) + "," + "," + string(bufEmailContact.ID) + "," + string(bufEmailContact.EmailAddress)).
             // ADD TO NUMBER OF EMAILS DELETED COUNT 
             numEmailsDeleted = numEmailsDeleted + 1.
-            // DELETE THE SAEMAILADDRESS TABLE RECORD
+            // DELETE THE EMAILCONTACT TABLE RECORD
             delete bufEmailContact.
         end.
     end.

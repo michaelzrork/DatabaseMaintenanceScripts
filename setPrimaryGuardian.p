@@ -77,7 +77,7 @@ for each Account no-lock:
                 run setPrimaryGuardian(Relationship.ID).
                 next household-loop.
             end.
-            // IF WE CAN'T FIND THE SAPERSON RECORD, LET'S LOG IT AS AN ORPHANED RECORD IN CASE WE NEED TO LOOK INTO SOMETHING FURTHER
+            // IF WE CAN'T FIND THE MEMBER RECORD, LET'S LOG IT AS AN ORPHANED RECORD IN CASE WE NEED TO LOOK INTO SOMETHING FURTHER
             if not available Member then 
             do:
                 assign 

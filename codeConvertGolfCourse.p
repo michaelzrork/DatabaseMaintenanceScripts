@@ -69,16 +69,16 @@ teetime-loop:
 for each GRTeeTime no-lock where GRTeeTime.GolfCourse = 2:
     // FIND DUPLICATE TEE TIMES FOR COURSE 1
     for first bufGRTeeTime no-lock where bufGRTeeTime.GolfCourse = 1 and bufGRTeeTime.TeeTimeDate = GRTeeTime.TeeTimeDate and bufGRTeeTime.TeeTime = GRTeeTime.TeeTime and bufGRTeeTime.StartingTee = GRTeeTime.StartingTee and bufGRTeeTime.TeeTimeType = GRTeeTime.TeeTImeType:
-        // IF THERE IS A DUPLICATE COURSE 1 TEE TIME, FIND SADETAIL RECORDS FOR COURSE 1 TEE TIME
+        // IF THERE IS A DUPLICATE COURSE 1 TEE TIME, FIND TRANSACTIONDETAIL RECORDS FOR COURSE 1 TEE TIME
         for first TransactionDetail no-lock where TransactionDetail.MasterLinkID = bufGRTeeTime.ID and lookup(TransactionDetail.RecordStatus,"Removed,Cancelled") = 0:
-            // IF THERE IS AN SADETAIL RECORD FOR COURSE 1 TEE TIME, FIND SADETAIL RECORDS FOR COURSE 2 TEE TIME
+            // IF THERE IS AN TRANSACTIONDETAIL RECORD FOR COURSE 1 TEE TIME, FIND TRANSACTIONDETAIL RECORDS FOR COURSE 2 TEE TIME
             for first bufTransactionDetail no-lock where bufTransactionDetail.MasterLinkID = GRTeeTime.ID and lookup(bufTransactionDetail.RecordStatus,"Removed,Cancelled") = 0:
-                // IF BOTH COURSES HAVE SADETAIL RECORDS, LOG AND CHECK NEXT TEE TIME
+                // IF BOTH COURSES HAVE TRANSACTIONDETAIL RECORDS, LOG AND CHECK NEXT TEE TIME
                 run put-stream("~"" + "Duplicate with TransactionDetail Record; Both courses have TransactionDetail records" + "~",~"" + trueval(string(GRTeeTime.ID)) + "~",~"" + getString(string(GRTeeTime.LogDate)) + "~",~"" + getString(string(GRTeeTime.GolfCourse)) + "~",~"" + getString(string(GRTeeTime.LinkCourse)) + "~",~"" + getString(string(GRTeeTime.TeeTimeDate)) + "~",~"" + getString(string(GRTeeTime.TeeTime)) + "~",~"" + getString(string(GRTeeTime.LinkedTime)) + "~",~"" + getString(string(GRTeeTime.TeeTimeType)) + "~",~"" + getString(string(GRTeeTime.StartingTee)) + "~",~"" + getString(GRTeeTime.RecordStatus) + "~",~"" + getString(string(GRTeeTime.SlotsOpen)) + "~",~"" + getString(string(bufGRTeeTime.ID)) + "~",~"" + getString(string(bufGRTeeTime.LogDate)) + "~",~"" + getString(string(bufGRTeeTime.GolfCourse)) + "~",~"" + getString(string(bufGRTeeTime.LinkCourse)) + "~",~"" + getString(string(bufGRTeeTime.TeeTimeDate)) + "~",~"" + getString(string(bufGRTeeTime.TeeTime)) + "~",~"" + getString(string(bufGRTeeTime.LinkedTime)) + "~",~"" + getString(string(bufGRTeeTime.TeeTimeType)) + "~",~"" + getString(string(bufGRTeeTime.StartingTee)) + "~",~"" + getString(string(bufGRTeeTime.RecordStatus)) + "~",~"" + getString(string(bufGRTeeTime.SlotsOpen)) + "~",").
                 assign 
                     numDupesNotDeleted = numDupesNotDeleted + 1.
             end.
-            // IF ONLY COURSE 1 HAS SADETAIL RECORDS, DELETE TEE TIME FOR COURSE 2 THEN MOVE TO THE NEXT TEE TIME
+            // IF ONLY COURSE 1 HAS TRANSACTIONDETAIL RECORDS, DELETE TEE TIME FOR COURSE 2 THEN MOVE TO THE NEXT TEE TIME
             if not available bufTransactionDetail then 
             do:
                 run put-stream("~"" + "Duplicate with TransactionDetail Record; Course 2 Tee Time Deleted" + "~",~"" + trueval(string(GRTeeTime.ID)) + "~",~"" + getString(string(GRTeeTime.LogDate)) + "~",~"" + getString(string(GRTeeTime.GolfCourse)) + "~",~"" + getString(string(GRTeeTime.LinkCourse)) + "~",~"" + getString(string(GRTeeTime.TeeTimeDate)) + "~",~"" + getString(string(GRTeeTime.TeeTime)) + "~",~"" + getString(string(GRTeeTime.LinkedTime)) + "~",~"" + getString(string(GRTeeTime.TeeTimeType)) + "~",~"" + getString(string(GRTeeTime.StartingTee)) + "~",~"" + getString(GRTeeTime.RecordStatus) + "~",~"" + getString(string(GRTeeTime.SlotsOpen)) + "~",~"" + getString(string(bufGRTeeTime.ID)) + "~",~"" + getString(string(bufGRTeeTime.LogDate)) + "~",~"" + getString(string(bufGRTeeTime.GolfCourse)) + "~",~"" + getString(string(bufGRTeeTime.LinkCourse)) + "~",~"" + getString(string(bufGRTeeTime.TeeTimeDate)) + "~",~"" + getString(string(bufGRTeeTime.TeeTime)) + "~",~"" + getString(string(bufGRTeeTime.LinkedTime)) + "~",~"" + getString(string(bufGRTeeTime.TeeTimeType)) + "~",~"" + getString(string(bufGRTeeTime.StartingTee)) + "~",~"" + getString(string(bufGRTeeTime.RecordStatus)) + "~",~"" + getString(string(bufGRTeeTime.SlotsOpen)) + "~",").
@@ -88,7 +88,7 @@ for each GRTeeTime no-lock where GRTeeTime.GolfCourse = 2:
                 next teetime-loop.
             end.
         end.
-        // IF COURSE 1 HAS NO SADETAIL RECORDS, DELETE THE COURSE 1 TEE TIME AND CHANGE COURSE 2 TO COURSE 1
+        // IF COURSE 1 HAS NO TRANSACTIONDETAIL RECORDS, DELETE THE COURSE 1 TEE TIME AND CHANGE COURSE 2 TO COURSE 1
         if not available TransactionDetail then 
         do:
             run put-stream("~"" + "Duplicate with No TransactionDetail record; Course 1 Tee Time Deleted" + "~",~"" + trueval(string(GRTeeTime.ID)) + "~",~"" + getString(string(GRTeeTime.LogDate)) + "~",~"" + getString(string(GRTeeTime.GolfCourse)) + "~",~"" + getString(string(GRTeeTime.LinkCourse)) + "~",~"" + getString(string(GRTeeTime.TeeTimeDate)) + "~",~"" + getString(string(GRTeeTime.TeeTime)) + "~",~"" + getString(string(GRTeeTime.LinkedTime)) + "~",~"" + getString(string(GRTeeTime.TeeTimeType)) + "~",~"" + getString(string(GRTeeTime.StartingTee)) + "~",~"" + getString(GRTeeTime.RecordStatus) + "~",~"" + getString(string(GRTeeTime.SlotsOpen)) + "~",~"" + getString(string(bufGRTeeTime.ID)) + "~",~"" + getString(string(bufGRTeeTime.LogDate)) + "~",~"" + getString(string(bufGRTeeTime.GolfCourse)) + "~",~"" + getString(string(bufGRTeeTime.LinkCourse)) + "~",~"" + getString(string(bufGRTeeTime.TeeTimeDate)) + "~",~"" + getString(string(bufGRTeeTime.TeeTime)) + "~",~"" + getString(string(bufGRTeeTime.LinkedTime)) + "~",~"" + getString(string(bufGRTeeTime.TeeTimeType)) + "~",~"" + getString(string(bufGRTeeTime.StartingTee)) + "~",~"" + getString(string(bufGRTeeTime.RecordStatus)) + "~",~"" + getString(string(bufGRTeeTime.SlotsOpen)) + "~",").
@@ -139,7 +139,7 @@ procedure changeCourse:
     end.
 end.
 
-// CHANGE THE SADETAIL RECORD DETAILS
+// CHANGE THE TRANSACTIONDETAIL RECORD DETAILS
 procedure changeDetail:
     define input parameter inpID as int64 no-undo.
     define buffer bufDetail1 for TransactionDetail.

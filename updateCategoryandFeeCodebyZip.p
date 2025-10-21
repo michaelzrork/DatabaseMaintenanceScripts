@@ -102,7 +102,7 @@ resHHLoop:  // FOR EACH HH WITH ZIP CODE IN residentZipCodeList, CHECK IF THEY A
                         for first Member no-lock where Member.id = Relationship.ChildTableID and (Member.Category <> resCategory or lookup(resFeeCode,Member.CodeValue) = 0 or lookup(nonResFeeCode,Member.CodeValue) > 0):
                             run updatePerson (Member.id).
                         end.
-                    end. // SAPERSON UPDATE
+                    end. // MEMBER UPDATE
                 else if Relationship.Childtable = "LSTeam" then 
                     do:
                         for first LSTeam no-lock where LSTeam.id = Relationship.ChildTableID and (LSTeam.Category <> resCategory or lookup(resFeeCode,LSTeam.CodeValue) = 0 or lookup(nonResFeeCode,LSTeam.CodeValue) > 0):
@@ -131,7 +131,7 @@ nonResHHLoop:   // FOR EACH HH WITH ZIP CODE not IN residentZipCodeList, CHECK I
                             if hhCheck = "skip" then next nonResFMLoop.
                             run updatePerson (Member.id).
                         end.
-                    end. // SAPERSON UPDATE
+                    end. // MEMBER UPDATE
                 else if Relationship.Childtable = "LSTeam" then 
                     do:
                         for first LSTeam no-lock where LSTeam.id = Relationship.ChildTableID and (LSTeam.Category <> nonResCategory or lookup(nonResFeeCode,LSTeam.CodeValue) = 0 or lookup(resFeeCode,LSTeam.CodeValue) > 0):
@@ -178,7 +178,7 @@ procedure updateHousehold: // FOR EACH HH PASSED THROUGH, SET THE Account CATEGO
             count-loop:
                 do countVar = 1 to num-entries(oldFeeCodes):
                     if entry(countVar,oldFeeCodes) = feecodetoReplace or entry(countVar,OldFeeCodes) = newFeeCode then next count-loop.
-                    assign bufAccount.CodeValue = bufSAhousehold.CodeValue + "," + entry(countVar,oldFeeCodes).
+                    assign bufAccount.CodeValue = bufAccount.CodeValue + "," + entry(countVar,oldFeeCodes).
                 end.
     end.
 end procedure.

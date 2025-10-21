@@ -142,7 +142,7 @@ for each Account no-lock where Account.RecordStatus = "Active":
         assign
             oHouseholdBO       = HouseholdBO:GetByHouseholdID(Account.ID)       /* GRABS THE HOUSEHOLD OBJECT */
             oPersonBO          = PersonBO:GetByID(Member.ID)                      /* GRABS THE FAMILY MEMBER OBJECT */
-            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE SALINK OBJECT */
+            oLinkBO            = oPersonBO:GetLinkToRecord(oHouseholdBO:Household)  /* GRABS THE RELATIONSHIP OBJECT */
             permissionsUpdated = no
             WebUserUpdated     = no.
         
@@ -331,8 +331,8 @@ procedure changeWebUser:
     define variable parentLastLogin as datetime no-undo.
     define buffer bufWebUserName  for WebUserName.
     define buffer bufMember     for Member.
-    define buffer bufChildSALink  for Relationship.
-    define buffer bufParentSALink for Relationship.
+    define buffer bufChildRelationship  for Relationship.
+    define buffer bufParentRelationship for Relationship.
     
     do for bufWebUserName transaction:
         for first bufWebUserName exclusive-lock where bufWebUserName.ParentTable = "Member" and bufWebUserName.ParentRecord = childPersonID:
@@ -341,16 +341,16 @@ procedure changeWebUser:
                 numUserNamesChanged = numUserNamesChanged + 1.
             if not LogOnly then assign
                     bufWebUserName.ParentRecord = parentPersonID.
-            for first bufChildSALink exclusive-lock where bufChildSALink.ChildTableID = childPersonID and bufChildSALink.ParentTableID = hhID:
+            for first bufChildRelationship exclusive-lock where bufChildRelationship.ChildTableID = childPersonID and bufChildRelationship.ParentTableID = hhID:
                 assign 
-                    lastWebLogin = bufChildSALink.WebLastLoginDateTime.
+                    lastWebLogin = bufChildRelationship.WebLastLoginDateTime.
                 if not LogOnly then assign
-                        bufChildSALink.WebLastLoginDateTime = ?.
-                for first bufParentSALink exclusive-lock where bufParentSALink.ChildTableID = parentPersonID and bufParentSALink.ParentTableID = hhID:
+                        bufChildRelationship.WebLastLoginDateTime = ?.
+                for first bufParentRelationship exclusive-lock where bufParentRelationship.ChildTableID = parentPersonID and bufParentRelationship.ParentTableID = hhID:
                     assign 
-                        parentLastLogin = bufParentSALink.WebLastLoginDateTime.
+                        parentLastLogin = bufParentRelationship.WebLastLoginDateTime.
                     if not LogOnly then assign 
-                            bufParentSALink.WebLastLoginDateTime = lastWebLogin.
+                            bufParentRelationship.WebLastLoginDateTime = lastWebLogin.
                 end.
             end.
             run put-stream("~"" +
@@ -364,7 +364,7 @@ procedure changeWebUser:
                 getString(string(parentPersonID))
                 + "~",~"" +
                 /*Child Relationship.ID*/
-                getString(string(bufChildSALink.ID))
+                getString(string(bufChildRelationship.ID))
                 + "~",~"" +
                 /*Original Child Relationship.WebLastLoginDateTime*/
                 getString(string(lastWebLogin))
@@ -373,7 +373,7 @@ procedure changeWebUser:
                 getString(string(?))
                 + "~",~"" +
                 /*Parent Relationship.ID*/
-                getString(string(bufParentSALink.ID))
+                getString(string(bufParentRelationship.ID))
                 + "~",~"" +
                 /*Original Parent Relationship.WebLastLoginDateTime*/
                 getString(string(parentLastLogin))
