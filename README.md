@@ -1,8 +1,8 @@
-# Database Maintenance Scripts
+# Database Maintenance Scripts - Production ABL Code
 
-**Production-safe automation for Vermont Systems' RecTrac/WebTrac platform**
+Collection of production scripts written during my time as Operations Software Support Engineer at Vermont Systems (2021-2025). These scripts processed millions of records across 100+ customer databases with zero unrecoverable data corruption incidents.
 
-Transaction-safe database operations processing millions of records across 1,000+ customer organizations. Template pattern adopted across 160+ production deployments with zero unrecoverable data incidents.
+**Tech Stack:** Progress OpenEdge ABL (4GL), SQL, Database Administration
 
 ---
 
@@ -10,508 +10,420 @@ Transaction-safe database operations processing millions of records across 1,000
 
 | Achievement | Impact |
 |-------------|--------|
-| **Fraud Detection Algorithm** | Deployed to 8+ organizations, same-day merchant account recovery |
-| **Automation Template** | Adopted across 160+ scripts, zero unrecoverable data incidents |
-| **Data Corruption Fix** | Recovered $1M+ in false charges, 7-year system-wide bug |
-| **Production Safety** | 100% rollback capability, comprehensive audit logging |
+| **Fraud Detection System** | Deployed in 24 hours during active incident across 8+ organizations |
+| **$1M Phantom Fees Recovery** | Resolved 7-year data corruption bug, zero data loss |
+| **Payment Refund Fix** | Corrected 10+ year household member allocation flaw |
+| **Automation Template** | 160+ deployments, zero unrecoverable incidents, 70% time reduction |
 
 ---
 
-## Featured Scripts
-
-### InactivateBadActorHHs_Today-7.p ([View Code](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/InactivateBadActorHHs_Today-7.p))
-Multi-factor fraud detection algorithm with self-configuring lookback window. Deployed to 8+ organizations during active security incidents.
-
-### deletePendingFees.p ([View Code](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/deletePendingFees.p))
-Primary cleanup script for 7-year data corruption bug. Recovered $1M+ in false charges through systematic remediation.
-
----
-
-## Overview
-
-These scripts represent 2+ years of backend development work, progressing from basic CRUD operations under guidance (late 2022) to complex multi-table operations and original algorithm design (2023-2025).
-
-**Production Environment:**
-- Progress OpenEdge database (RDBMS)
-- Vermont Systems RecTrac/WebTrac platform
-- 1,000+ customer databases
-- Processing scale: Hundreds to millions of records
-
-**Engineering Practices:**
-- Transaction safety (all operations wrapped in transactions)
-- Comprehensive audit logging (ActivityLog entries tracking changes)
-- CSV log files for detailed change tracking
-- Dry-run mode capability (`LogOnly` flag in template)
-- Systematic testing (demo database → production)
-- Iterative improvement based on edge case discovery
+## Table of Contents
+- [Fraud Detection System](#fraud-detection-system)
+- [Data Corruption Cleanup - $1M Phantom Fees](#data-corruption-cleanup---1m-phantom-fees)
+- [Category/Fee Code Sync System](#categoryfee-code-sync-system)
+- [Household Member Payment Fix](#household-member-payment-fix)
+- [Script Template Framework](#script-template-framework)
+- [Development Approach](#development-approach)
+- [Technical Notes](#technical-notes)
+- [Full Script Inventory](#full-script-inventory)
+- [About This Repository](#about-this-repository)
 
 ---
 
-## Script Categories
+## Fraud Detection System
 
-The scripts are organized by function:
+**Problem:** Active security incident - merchant accounts compromised, fraudulent transactions occurring across 8+ customer organizations. Payment gateway credentials exposed. Bad actors creating fake households to test stolen credit cards in real-time.
 
-### Data Discovery & Validation (23 scripts)
-Scripts beginning with `find*` - Identify data issues, missing records, or generate reports
-- **[findDuplicateTeeTimes.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/findDuplicateTeeTimes.p)** - Detect scheduling conflicts
-- **[findMissingCreditCardHistory.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/findMissingCreditCardHistory.p)** - Identify payment processing gaps
-- **[findOrphanedRecords.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/findOrphanedRecords.p)** - Locate records with broken relationships
-- **[findEmailVerificationsSentAfterVerified.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/findEmailVerificationsSentAfterVerified.p)** - Audit email verification process
+**Approach:** 
+- Built pattern-matching detection system examining account creation patterns, email validation, name analysis, and transaction history
+- Developed configurable lookback period system built into filename (e.g., `InactivateBadActorHHs_Today-7.p`) as workaround for system limitation preventing direct user input
+- Created layered detection logic:
+  - Email pattern analysis (gibberish domains, known bad actor addresses)
+  - Name validation (detecting keyboard-mashing patterns like "asd", "fdg")
+  - Birthday cross-referencing against known bad actor profiles
+  - Card holder name verification against household members
+  - Address validation (households with coordinates flagged as legitimate)
+  - Transaction history analysis (internal vs. external payment methods)
 
-### Data Correction & Updates (19 scripts)
-Scripts beginning with `fix*` - Repair data integrity issues
-- **[fixCommonEmailDomainTypos.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/fixCommonEmailDomainTypos.p)** - Correct email typos (gmail.cmo → gmail.com)
-- **[fixHouseholdPhoneNumber.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/fixHouseholdPhoneNumber.p)** - Standardize phone number formatting
-- **[fixPrimaryGuardianRelationshipCode.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/fixPrimaryGuardianRelationshipCode.p)** - Correct family relationship data
+**Solution:**
+- Deployed detection system in 24 hours during active incident
+- Identified and inactivated fraudulent households across 8+ organizations
+- Balanced detection accuracy with false-positive rates through multi-layer checks
+- Generated comprehensive CSV logs of all inactivated accounts for customer review
+- Logged settled transactions separately for potential refund processing
+- Enabled restoration of merchant accounts and prevented further financial loss
 
-### Record Deletion & Cleanup (21 scripts)
-Scripts beginning with `delete*` - Remove invalid, duplicate, or orphaned data
-- **[deleteDuplicateMailingAddressRecords.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/deleteDuplicateMailingAddressRecords.p)** - Eliminate duplicate addresses
-- **[deleteOrphanedRecords.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/deleteOrphanedRecords.p)** - Remove records with no parent relationships
-- **[deletePendingFeeHistory.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/deletePendingFeeHistory.p)** - Clean up incomplete transaction records
+**Impact:** 
+- Stopped ongoing fraud within 48 hours of incident start
+- Restored service for affected customers
+- Provided audit trail for finance teams and law enforcement
+- Created reusable detection framework for future incidents
 
-### Business Logic Enforcement (13 scripts)
-Scripts beginning with `set*` - Enforce business rules and update statuses
-- **[setActiveFamilyMemberToInactive_HHCheck.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/setActiveFamilyMemberToInactive_HHCheck.p)** - Update member status based on household status
-- **[setDuplicateFeestoReset-ChargeStatusOnly.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/setDuplicateFeestoReset-ChargeStatusOnly.p)** - Reset duplicate charge records
-- **[setNewHHToTaxable.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/setNewHHToTaxable.p)** - Apply tax status to new accounts
-
-### Field-Level Changes (12 scripts)
-Scripts beginning with `change*` - Modify specific field values
-- **[changeFeeCode.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/changeFeeCode.p)** - Update fee structure assignments
-- **[changeGLCodes.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/changeGLCodes.p)** - Modify general ledger codes for accounting
-- **[changeStatusToInactive.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/changeStatusToInactive.p)** - Bulk status updates
-
-### Data Synchronization (7 scripts)
-Scripts beginning with `sync*` - Ensure consistency across related records
-- **[syncHHEmailtoPrimaryGuardian.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/syncHHEmailtoPrimaryGuardian.p)** - Keep household and member emails in sync
-- **[syncFamilyMemberStatusToHHStatus.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/syncFamilyMemberStatusToHHStatus.p)** - Cascade status changes
-- **[syncPhoneType.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/syncPhoneType.p)** - Standardize phone type classifications
-
-### Duplicate Merging (8 scripts)
-Scripts beginning with `merge*` - Consolidate duplicate records
-- **[mergeDuplicateFMs.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/mergeDuplicateFMs.p)** - Merge duplicate family members within accounts
-- **[mergeQuestionResponses.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/mergeQuestionResponses.p)** - Consolidate survey/registration responses
-- **[mergeGuestHouseholdFamilyMembers.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/mergeGuestHouseholdFamilyMembers.p)** - Merge guest account duplicates
-
-### Record Purging & Archival (6 scripts)
-Scripts beginning with `purge*` - Remove obsolete data systematically
-- **[purgeEntityLink.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/purgeEntityLink.p)** - Remove old relationship records
-- **[purgeMailingAddressRecordsWithNoAccountLink.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/purgeMailingAddressRecordsWithNoAccountLink.p)** - Clean orphaned addresses
-
-### Batch Updates (9 scripts)
-Scripts beginning with `update*` - Bulk field modifications
-- **[updateCategoryandFeeCodebyZip.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/updateCategoryandFeeCodebyZip.p)** - Geographic-based pricing updates
-- **[updateLastActiveDate.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/updateLastActiveDate.p)** - Maintain activity tracking
-- **[updatePaycodes.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/updatePaycodes.p)** - Mass payment method updates
-
-### Data Operations (Miscellaneous)
-- Scripts beginning with `clear*` (9 scripts) - Clear specific field values
-- Scripts beginning with `remove*` (6 scripts) - Selective data removal
-- Scripts beginning with `reset*` (3 scripts) - Return fields to default state
-- Scripts beginning with `revert*` (3 scripts) - Undo previous script changes
-- Scripts beginning with `add*` (3 scripts) - Add missing data or create records
+**Code:** [View InactivateBadActorHHs_Today-7.p](Scripts/InactivateBadActorHHs_Today-7.p)
 
 ---
 
-## Featured Scripts
+## Data Corruption Cleanup - $1M Phantom Fees
 
-### 1. Fraud Detection Algorithm
-**Filename:** **[InactivateBadActorHHs_Today-7.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/InactivateBadActorHHs_Today-7.p)**
+**Problem:** 7-year data corruption bug creating phantom fees on customer accounts. Session state contamination was triggering wrong MemberIDs on hundreds of daily transactions, causing incorrect scholarship payment refunds and fee assessments. Customers complained for years but root cause remained unidentified.
 
-**Purpose:** Identify stolen credit card testing patterns in real-time registration systems
+**Approach:**
+- Analyzed 15,000+ historical records to identify corruption patterns
+- Traced issue to session state management flaw where `CURRENT-MEMBER-ID` variable wasn't properly scoped between concurrent transactions
+- Mapped relationships between affected accounts, transactions, and fee records to build comprehensive cleanup logic
+- Designed multi-phase approach with comprehensive edge case handling:
+  - Pending fees without due options (primary target)
+  - Orphaned records with missing parent transactions
+  - Payment history reconciliation for scholarship refunds
+  - TransactionDetail FullyPaid status recalculation
+  - Charge/ChargeHistory relationship validation
 
-**Business Impact:** Enabled 8+ organizations to restore merchant accounts shut down by fraudulent activity
+**Solution:**
+- Built diagnostic logic identifying all records affected by the session state bug
+- Created cleanup system with LogOnly mode, comprehensive logging, and transaction-level rollback capabilities
+- Implemented safety checks preventing deletion of legitimate fees (cross-referenced against payment records, activity logs, and account history)
+- Coordinated with engineering team to implement permanent fix in application code
+- Generated detailed CSV logs showing before/after state for every modified record
 
-**Technical Implementation:**
+**Impact:** 
+- Safely deleted over $1M in false balances across multiple customer databases
+- Maintained near-100% customer satisfaction through proactive communication and phased rollout
+- Provided engineering team with detailed root cause analysis and reproduction steps, enabling permanent fix
+- Eliminated years of customer frustration and incorrect billing
 
-**Multi-Factor Risk Analysis:**
-The algorithm analyzes multiple risk indicators to identify fraudulent accounts:
-
-1. **Registration Timing Patterns**
-   - Rapid sequential account creation (timing clusters)
-   - Configurable lookback period (filename-based: Today-7, Today-1, etc.)
-   - Self-extracting date range from audit logs
-
-2. **Naming Pattern Detection**
-   - Known fraudulent name patterns (e.g., names starting with "asd")
-   - Email address validation (@example.com domains flagged)
-   - Known bad actor email addresses
-
-3. **Payment Analysis**
-   - Credit card decline patterns
-   - Card holder name vs. family member name matching
-   - Settled vs. declined transaction ratios
-   - Payment method restrictions (in-house vs. online)
-
-4. **Geographic & Demographic Validation**
-   - Household coordinate checking (valid addresses vs. fake)
-   - Birthday pattern matching (12/31/1969 as common test value)
-   - Address validation logic
-
-5. **Transaction History Correlation**
-   - Cross-references settled transactions for refund logging
-   - Generates detailed CSV reports with all transaction data
-   - Links fraudulent accounts across multiple criteria
-
-**Key Features:**
-- **Configurable lookback period** - Filename-based date range (e.g., `Today-7.p` checks last 7 days)
-- **Self-configuring** - Reads its own filename from audit logs to determine date range
-- **Low false-positive rate** - Multiple validation layers prevent legitimate user flagging
-- **Production safety** - LogOnly mode for validation before execution
-- **Comprehensive logging** - CSV files with all analyzed households and transaction details
-- **Refund tracking** - Logs settled transactions for financial reconciliation
-
-**Code Structure (783 lines):**
-```
-Lines 1-80:   Configuration & variable definitions
-Lines 83-100: Self-configuring date calculation from filename
-Lines 111-138: Temp-table definitions for data processing
-Lines 133-138: WebTrac interface configuration lookup
-Lines 140-735: Main processing loop with multi-factor analysis
-Lines 737-752: CSV log file generation
-Lines 754-802: Audit log procedures
-Lines 804-870: Utility functions (parsing, rounding, formatting)
-```
-
-**Production Usage:**
-- Deployed to 8+ customer databases during active fraud incidents
-- Variable lookback period enabled rapid response:
-  - Single-day analysis during active attacks
-  - Multi-day historical pattern analysis
-  - Trend identification across time periods
-
-**Edge Cases Handled:**
-- Legitimate bulk registrations (camps, sports leagues)
-- International users with different naming conventions
-- System-generated test accounts
-- Legitimate payment declines
-- Shared card holder names
-
-**Impact:** Organizations demonstrated fraud mitigation to credit card processors, restoring payment processing capabilities within days instead of weeks.
+**Code:** [View deletePendingFees.p](Scripts/deletePendingFees.p)
 
 ---
 
-### 2. Duplicate Family Member Merger
-**Filename:** **[mergeDuplicateFMs.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/mergeDuplicateFMs.p)**
+## Category/Fee Code Sync System
 
-**Purpose:** Merge duplicate member records within the same household while maintaining all relationship data
+**Problem:** Customer organizations needed automated system to sync household categories and fee codes based on ZIP code residency (Resident vs Non-Resident status). Original implementation was brittle, hard-coded, and didn't handle edge cases, requiring manual intervention for exceptions.
 
-**Business Challenge:** 
-Customer databases accumulated duplicate family members due to:
-- Multiple registration channels (web, phone, in-person)
-- Staff data entry errors
-- Self-service registration duplication
-- Parent vs. guardian registration conflicts
+**Approach - Version 1 (updateCategoryAndFeeCodebyZip.p):**
+- Hard-coded Resident/Non-Resident categories (required recompilation per customer)
+- Simple ZIP code lookup against Address Management tables
+- Updated households, family members, and linked teams
+- Basic logic without comprehensive edge case handling
 
-**Technical Implementation:**
+**Approach - Version 2 (syncHHCategoryAndFeecodeByZip.p):**
+- Complete rewrite based on production performance analysis and customer feedback
+- Dynamic category lookup from system configuration (eliminated all hard-coding)
+- Comprehensive edge case handling:
+  - Family members in multiple households (prioritized Resident status across all households)
+  - Missing ZIP codes (assigned default category from Static Parameters)
+  - ZIP codes not in Address Management (safe fallback logic)
+  - Guest/Internal/Model households (automatically excluded via CustomField lookup)
+  - Profile-based sync options (respecting "Do Not Sync Family Members" preference)
+  - ZIP+4 format support (intelligent substring matching)
+- Generated detailed CSV log files with before/after audit trails for all changes
+- Added comprehensive Activity Log updates with real-time progress tracking
 
-**Matching Logic:**
-Identifies duplicates based on:
-- First name + last name + birth date (exact match)
-- Within same household only (prevents incorrect merges)
-- Active status validation (preserves current data)
+**Solution:**
+- 300+ lines of defensive code with extensive error handling
+- Processed entire customer database (thousands of records) safely in single execution
+- Comprehensive logging showing every change: original values → new values with record IDs
+- Configurable behavior based on customer profile settings
+- Eliminated need for customer-specific versions (one script works across all databases)
 
-**Merge Strategy:**
-1. **Record Selection:**
-   - Identifies all duplicate sets within household
-   - Selects primary record (most complete data, most recent activity)
-   - Queues secondary records for merge
+**Impact:** 
+- Eliminated manual category management for multiple customers (hundreds of hours saved annually)
+- Reduced support tickets related to incorrect residency status by ~80%
+- Enabled automated annual residency verification processes
+- CSV logs provided accountability and easy rollback capability if needed
+- Script became template for other automated sync operations
 
-2. **Relationship Preservation:**
-   - Transfers all foreign key relationships to primary record
-   - Updates activity history links
-   - Maintains registration enrollments
-   - Preserves financial transaction history
-
-3. **Data Consolidation:**
-   - Merges custom field data
-   - Combines membership history
-   - Preserves all activity log entries
-   - Updates cross-reference tables
-
-4. **Cleanup:**
-   - Marks secondary records inactive
-   - Links duplicate records for audit trail
-   - Logs all merge operations
-   - Generates comprehensive CSV report
-
-**Safety Features:**
-- Dry-run mode (review before execution)
-- Within-household-only merging (prevents cross-household errors)
-- Comprehensive logging (audit trail for all changes)
-- Validation checks (prevents data loss)
-- Transaction-wrapped (rollback on error)
-
-**Code Structure (542 lines):**
-```
-Lines 1-98:   Configuration and validation setup
-Lines 99-215: Duplicate identification logic
-Lines 216-398: Relationship transfer procedures
-Lines 399-495: Data merge operations
-Lines 496-542: Cleanup and logging
-```
-
-**Production Results:**
-- Cleaned up hundreds of duplicate member records
-- Restored data integrity for enrollment systems
-- Enabled accurate household relationship tracking
-- Simplified user account management
-
-**Iterative Improvements:**
-- Initially merge all duplicates - changed to confirm before merge
-- Added validation for primary member selection
-- Enhanced logging for troubleshooting
-- Added revert capability for incorrect merges
-
-**Impact:** Cleaned household data, improved registration accuracy, simplified account management for staff.
+**Code:** 
+- [View syncHHCategoryAndFeecodeByZip.p](Scripts/syncHHCategoryAndFeecodeByZip.p) (Version 2 - production)
+- [View updateCategoryAndFeeCodebyZip.p](Scripts/updateCategoryAndFeeCodebyZip.p) (Version 1 - original for comparison)
 
 ---
 
-### 3. Email Synchronization System
-**Filename:** **[syncHHEmailtoPrimaryGuardian.p](https://github.com/michaelzrork/DatabaseMaintenanceScripts/blob/main/Scripts/syncHHEmailtoPrimaryGuardian.p)**
+## Household Member Payment Fix
 
-**Purpose:** Ensure household-level email addresses match the primary guardian's email
+**Problem:** Payment disbursement logic flaw causing split payment refunds to credit incorrect household members. When scholarships were refunded, money went to wrong family member due to flawed household relationship logic. Issue existed for 10+ years, causing persistent customer complaints and requiring manual corrections by finance staff.
 
-**Business Context:**
-The RecTrac system maintains emails at two levels:
-- **Household level** - Used for billing, account notifications
-- **Member level** - Individual email addresses for each family member
+**Approach:**
+- Built diagnostic script to identify all affected records across customer databases
+- Analyzed payment processing source code to understand the relationship logic flaw
+- Traced data flow: scholarship application → payment → refund → household member allocation
+- Identified root cause: PaymentTransaction.PaymentMemberID and PaymentLog.MemberLinkID were being set to wrong household member when TransactionDetail.PatronLinkID didn't match
+- Documented exact reproduction steps and conditions triggering the bug
 
-When the primary guardian's email changes, the household email should automatically sync. However, edge cases caused synchronization failures:
-- Direct database updates bypassing application logic
-- Legacy data migration issues
-- Multiple simultaneous updates
-- Email verification status mismatches
+**Solution:**
+- **Phase 1:** Research script (`findReceiptPaymentWithWrongMemberID.p`) identified pattern affecting multiple customers
+  - Cross-referenced PaymentTransaction, PaymentLog, ChargeHistory, Charge, and TransactionDetail records
+  - Generated comprehensive CSV with household context and member relationships
+  - Identified both scholarship and gift certificate payment types
+- **Phase 2:** Fix script (`fixPaymentMemberID.p`) corrected the data
+  - Updated PaymentTransaction.PaymentMemberID to match TransactionDetail.PatronLinkID
+  - Corrected PaymentLog.MemberLinkID for scholarship records
+  - Adjusted Member.ScholarshipAmount to reflect accurate balances
+  - Full transaction safety with rollback capabilities
+- **Phase 3:** Provided engineering team with detailed root cause analysis and proposed programmatic fix with pseudo-code
+- Engineering team implemented permanent fix in production code based on findings
 
-**Technical Implementation:**
+**Impact:**
+- Corrected incorrect member allocations across multiple customer databases
+- 10+ year customer complaint resolved permanently
+- Prevented future incorrect refund allocations through application-level fix
+- CSV logs provided complete audit trail for finance reconciliation
+- Eliminated manual correction workload for support and finance teams
 
-**Sync Strategy:**
-1. **Identify Out-of-Sync Records:**
-   - Find households where primary guardian email ≠ household email
-   - Exclude households with intentionally different emails
-   - Skip households with no primary guardian
-
-2. **Validation:**
-   - Verify primary guardian relationship code
-   - Check email format validity
-   - Confirm household email isn't manually set
-
-3. **Update Process:**
-   - Copy primary guardian email → household email
-   - Update email verification status
-   - Update opt-in/opt-out status
-   - Log all changes
-
-4. **Post-Sync Verification:**
-   - Confirm sync completed
-   - Log any failures
-   - Generate summary report
-
-**Safety Features:**
-- Read-only on Account records (no accidental household changes)
-- Comprehensive logging of all syncs
-- Preserves email history
-- No data deletion (only updates)
-
-**Code Structure (197 lines):**
-```
-Lines 1-59:  Configuration and logging setup
-Lines 60-79: Main sync loop
-Lines 80-197: Email update procedures with field-level changes
-```
-
-**Production Results:**
-- Fixed hundreds of out-of-sync email records
-- Prevented communication issues
-- Restored email verification accuracy
-- Used as post-update maintenance step
-
-**Iterative Improvements:**
-- Originally deleted member emails when household email blank
-- Updated to sync instead (preserves data)
-- Added opt-in status sync
-- Added verification status sync
-- Added detailed logging for troubleshooting
-
-**Impact:** Restored email data consistency, prevented communication failures, enabled reliable email verification tracking.
+**Code:** 
+- [View findReceiptPaymentWithWrongMemberID.p](Scripts/findReceiptPaymentWithWrongMemberID.p) (diagnostic/research)
+- [View fixPaymentMemberID.p](Scripts/fixPaymentMemberID.p) (implementation)
 
 ---
 
-## Reusable Script Template System
+## Script Template Framework
 
-**Filename:** `_ProgramTemplate.p` (in Templates folder)
+**Problem:** Need for standardized, production-safe script structure that support team could use confidently. Too many one-off scripts without consistent safety mechanisms led to anxiety around running scripts in customer databases and occasional incidents requiring rollback.
 
-All scripts built from common template providing standardized patterns:
+**Approach:**
+Created reusable template with built-in safety mechanisms:
+- **LogOnly Mode:** Append "LogOnly" to program name to preview all changes without committing transactions
+- **Demo Database Testing:** Test mode using customer demo database before touching production
+- **Dry-Run Preview:** Full execution with comprehensive logging but no data commits
+- **Activity Log Integration:** Real-time progress updates with last-processed record ID for resumability
+- **CSV Audit Trails:** Comprehensive before/after logs with all field changes and record IDs
+- **Transaction Safety:** Explicit transaction blocks with buffer patterns and error handling
+- **Row-Level Locking:** Prevented race conditions in high-volume batch operations
+- **Input Validation:** Pre-flight checks for required configuration before execution
+- **Client Code Tracking:** Automatic customer identification in all log files
+- **Pagination Support:** Automatic log file splitting at 100,000 records to prevent memory issues
 
-**Template Features:**
+**Solution:**
+- Template adopted team-wide for all new script development
+- Standardized Activity Log format: Detail1-5 fields for consistent reporting
+- Built-in helper functions (ParseList, RoundUp, AddCommas) for data formatting
+- Document Center integration for automatic log file storage
+- Reduced script development time from days to hours
+- Enabled junior support staff to confidently handle complex data operations
 
-1. **Configuration Block**
-```progress
-&global-define ProgramName "scriptName"
-&global-define ProgramDescription "What this does"
+**Impact:**
+- Established production safety culture within support team
+- Reduced anxiety around running scripts in customer databases
+- Zero data corruption incidents across 160+ script deployments using this template
+- Enabled team to handle 3x ticket volume without additional headcount
+- Reduced manual intervention time by 70%
+- Created knowledge base of reusable patterns and practices
 
-LogOnly flag - Dry-run mode without database changes
-```
-
-2. **Comprehensive Logging**
-```progress
-- CSV log files (detailed change tracking)
-- ActivityLog entries (audit trail)
-- Progress tracking (last record ID)
-- Record counts (validation)
-```
-
-3. **Transaction Safety**
-```progress
-- All changes wrapped in transactions
-- Rollback on error
-- Validation before commit
-```
-
-4. **Utility Functions**
-```progress
-- ParseList() - Handle delimited data
-- RoundUp() - Decimal precision
-- AddCommas() - Number formatting
-- getString() - Null-safe string conversion
-```
-
-5. **Standard Procedures**
-```progress
-- put-stream() - CSV file generation
-- ActivityLog() - Create audit entries
-- UpdateActivityLog() - Update progress
-```
-
-**Benefits:**
-- Consistent error handling across all scripts
-- Predictable logging behavior
-- Easy troubleshooting (standard log format)
-- Rapid script development
-- Production-safe by design
-
-**Evolution:**
-- Early scripts (late 2022): Basic structure, minimal logging
-- Mid-period (2023): Added dry-run mode, better error handling
-- Mature scripts (2024-2025): Full template with all safety features
-
-**Impact:** Enabled development of 100+ production-safe scripts with consistent quality and safety practices.
+**Code:** [View _ProgramTemplate.p](Templates/_ProgramTemplate.p)
 
 ---
 
-## Development Progression
+## Development Approach
+
+### Safety-First Philosophy
+
+All scripts followed a rigorous safety process to ensure production stability and data integrity.
+
+**Standard Script Deployment Process:**
+1. **Template-based development** - Start with standardized safety patterns and proven utility functions
+2. **Demo database testing** - Full validation with realistic data volumes matching production scale
+3. **LogOnly execution** - Dry-run in production environment with comprehensive logging but zero commits
+4. **Log review and validation** - Verify expected behavior, identify edge cases, confirm record counts
+5. **Phased production rollout** - Start with single customer, monitor results, expand gradually
+6. **Results verification** - Confirm changes match expectations, validate data integrity
+7. **Edge case documentation** - Update script logic and comments for discovered scenarios
+
+**Root Cause Analysis:**
+- SQL queries to identify data patterns and anomalies
+- Source code review to understand application logic flaws
+- Customer data analysis to trace issue history
+- Cross-table relationship mapping to prevent cascade failures
+
+### Collaboration Model
+
+These scripts weren't built in isolation:
+- **Engineering Partnership:** Provided detailed root cause analysis and reproduction steps for permanent fixes
+- **Customer Communication:** Proactive updates throughout phased rollouts, setting expectations and gathering feedback
+- **Support Team Enablement:** Documentation and training to allow team members to run scripts confidently
+- **Cross-functional Coordination:** Worked with finance, operations, and management on high-impact changes
+
+### Quality Metrics
+
+- **Zero unrecoverable data corruption incidents** across 160+ script deployments
+- **Near-100% customer satisfaction** through proactive communication and careful rollout strategies
+- **3x ticket volume capacity** enabled without additional headcount
+- **70% reduction** in manual intervention time for routine data operations
+- **Dozens of permanent fixes** implemented by engineering team based on script findings
+
+### Development Progression
 
 **Late 2022 - Learning Phase:**
 - Started with guidance from senior developers
 - Basic CRUD scripts (change, update, clear operations)
-- Simple single-table updates
-- Following existing patterns
+- Simple single-table updates with minimal validation
+- Following existing patterns and team conventions
 
 **2023 - Independence:**
-- Began designing scripts independently
-- More complex multi-table operations
-- Added comprehensive logging
-- Developed reusable template pattern
+- Began designing scripts independently based on ticket requirements
+- More complex multi-table operations with relationship preservation
+- Added comprehensive logging and error handling
+- Developed reusable template pattern from common needs
 
 **2024-2025 - Complexity & Algorithm Design:**
-- Original algorithm design (fraud detection)
-- Complex merge operations
-- Multi-criteria analysis
-- Self-configuring scripts
-- Production optimization
+- Original algorithm design (fraud detection pattern matching)
+- Complex merge operations with data consolidation
+- Multi-criteria analysis and decision trees
+- Self-configuring scripts with dynamic behavior
+- Production optimization based on real-world performance
+- Object-oriented integration with Vermont Systems' Business Object layer
 
 ---
 
-## Production Engineering Practices
+## Technical Notes
 
-**Safety-First Approach:**
-1. Write script using template
-2. Test in demo database (identical schema, test data)
-3. Run in production with `LogOnly` flag (dry-run validation)
-4. Review logs for unexpected behavior
-5. Execute in production with logging enabled
-6. Verify results and handle exceptions
-7. Document edge cases for future iterations
+### About Progress OpenEdge ABL
 
-**Iterative Improvement:**
-- Scripts evolved through production use
-- Edge cases discovered led to enhanced validation
-- Performance optimizations added based on actual usage
-- Better error messages from user feedback
-- Revert scripts created when fixes needed
+- **4GL supporting both procedural and object-oriented programming** with built-in database integration
+- **Hybrid development approach** using both paradigms based on task requirements:
+  - OOP when integrating with Vermont Systems' business logic layer
+  - Procedural for direct database maintenance and bulk operations
+- **Integrated transaction management** with explicit transaction blocks and rollback capabilities
+- **Used in enterprise SaaS systems**, particularly in recreation management and government sectors
+- **Strong typing** with support for both object references and traditional buffers (record references)
 
-**Production Mindset:**
-- Code runs on real customer data
-- Failures have business impact
-- Quick troubleshooting essential (good logs)
-- Safe failure modes (transaction rollback)
-- Clear documentation for maintenance
+### Development Approach by Task Type
 
-**Learning & Growth:**
-- Started with basic scripts under guidance
-- Developed template pattern through experience
-- Built increasingly complex systems
-- Designed original algorithms
-- Achieved independence in engineering decisions
+**Object-Oriented Scripts (Business Logic Integration):**
+- Leveraged Vermont Systems' Business Object layer (BO classes)
+- Example: `bulkSendWebInvite.p` - Used AccountBO, MemberBO, LinkBO, WebInvitesBO
+- Object lifecycle management: instantiation, method calls, validation through business layer
+- Encapsulated business rules: email validation, permission setting, invite sending
+- Benefits: Reused existing validation logic, maintained consistency with application behavior
+
+**Procedural Scripts (Database Maintenance):**
+- Direct table access for data correction, cleanup, and bulk operations
+- Examples: Most find*, fix*, delete*, sync* scripts
+- Transaction-wrapped operations with explicit commit/rollback control
+- Temp-tables for in-memory processing, deduplication, and intermediate results
+- Buffer patterns for record locking and safe concurrent access
+- Benefits: Performance optimization for bulk operations, granular control over transactions
+
+**Design Decision Criteria:**
+- Use OOP when: Leveraging existing business logic, sending emails, enforcing application-level rules
+- Use procedural when: Bulk updates, data cleanup, performance-critical operations, bypassing application overhead
+
+### Development Environment
+
+- **Progress Developer Studio** (Eclipse-based IDE) for script development and debugging
+- **Customer demo databases** for comprehensive testing before production deployment
+- **Production deployment** via manual execution with comprehensive logging and monitoring
+- **Version control** through Bitbucket (read-only access for investigating released application versions)
+- **No automated testing framework** - safety through comprehensive manual testing and LogOnly mode
+
+### Safety Practices in Production
+
+- **All scripts tested in demo environment first** with realistic customer data volumes
+- **LogOnly mode for every production execution** - review logs before committing changes
+- **Comprehensive logging to Activity Log tables** - real-time progress tracking and audit trail
+- **Transaction blocks with explicit error handling** - rollback on any exception
+- **Coordination with engineering team** for systemic fixes requiring application changes
+- **Phased rollout strategy** - start small, monitor, expand gradually
+- **Customer communication plan** - set expectations, provide updates, gather feedback
+
+### Why Progress ABL?
+
+While not as widely known as modern languages, Progress ABL is used by thousands of enterprise organizations in government, recreation, healthcare, and education sectors. The principles demonstrated here - defensive programming, comprehensive logging, transaction safety, and customer-centric deployment - translate directly to any backend engineering role.
+
+**Transferable Skills:**
+- Transaction management and data integrity
+- Production debugging and troubleshooting
+- Database relationship understanding
+- Batch processing optimization
+- Error handling and recovery strategies
+- Customer communication during high-impact changes
+- Choosing appropriate paradigms (OOP vs procedural) based on task requirements
 
 ---
 
-## Technical Environment
+## Full Script Inventory
 
-**Language:** Progress ABL (OpenEdge Advanced Business Language)
+This repository represents 160+ production scripts across multiple categories:
 
-**Database:** Progress OpenEdge RDBMS (relational database)
+### Script Categories by Function
 
-**Execution:** Batch processing via AppServer or command-line
+- **Data Discovery & Validation** (23 scripts) - `find*` prefix - Identify data issues, missing records, generate reports
+- **Data Correction & Updates** (19 scripts) - `fix*` prefix - Repair data integrity issues
+- **Record Deletion & Cleanup** (21 scripts) - `delete*` prefix - Remove invalid, duplicate, or orphaned data
+- **Business Logic Enforcement** (13 scripts) - `set*` prefix - Enforce business rules and update statuses
+- **Field-Level Changes** (12 scripts) - `change*` prefix - Modify specific field values
+- **Data Synchronization** (7 scripts) - `sync*` prefix - Ensure consistency across related records
+- **Duplicate Merging** (8 scripts) - `merge*` prefix - Consolidate duplicate records
+- **Record Purging & Archival** (6 scripts) - `purge*` prefix - Remove obsolete data systematically
+- **Batch Updates** (9 scripts) - `update*` prefix - Bulk field modifications
+- **Plus:** Clear (9), Remove (6), Reset (3), Revert (3), Add (3), Bulk operations with OOP integration
 
-**Scale:**
-- Individual scripts: 50-800 lines of code
-- Processing volume: Hundreds to millions of records per run
-- Customer databases: 1,000+ production databases
-- Deployment: Customer-specific execution on demand
+*Featured scripts above represent the most technically complex and business-impactful work.*
 
-**Development Tools:**
-- Progress Developer Studio
-- Git version control
-- Internal code review
-- Customer-specific testing environments
+### Example Scripts by Category
+
+**Data Discovery:**
+- `findDuplicateTeeTimes.p` - Detect scheduling conflicts
+- `findMissingCreditCardHistory.p` - Identify payment processing gaps
+- `findOrphanedRecords.p` - Locate records with broken relationships
+- `findReceiptPaymentWithWrongMemberID.p` - Research payment allocation issues
+
+**Data Correction:**
+- `fixCommonEmailDomainTypos.p` - Correct email typos (gmail.cmo → gmail.com)
+- `fixHouseholdPhoneNumber.p` - Standardize phone number formatting
+- `fixPrimaryGuardianRelationshipCode.p` - Correct family relationship data
+- `fixPaymentMemberID.p` - Correct payment member allocation
+
+**Record Cleanup:**
+- `deleteDuplicateMailingAddressRecords.p` - Eliminate duplicate addresses
+- `deleteOrphanedRecords.p` - Remove records with no parent relationships
+- `deletePendingFees.p` - Clean up phantom fees from session state bug
+
+**Business Logic:**
+- `setActiveFamilyMemberToInactive_HHCheck.p` - Update member status based on household status
+- `setDuplicateFeestoReset-ChargeStatusOnly.p` - Reset duplicate charge records
+- `setNewHHToTaxable.p` - Apply tax status to new accounts
+
+**OOP Integration:**
+- `bulkSendWebInvite.p` - Bulk web invite sending using Business Objects (AccountBO, MemberBO, LinkBO, WebInvitesBO)
 
 ---
 
-## Key Takeaways
+## About This Repository
+
+These scripts represent 2.5 years of production database engineering work supporting 100+ enterprise customers. Each script solved real business problems, handled edge cases comprehensively, and prioritized data safety above all else.
+
+The work demonstrated here includes:
+- **Root cause analysis and debugging** - tracing issues through complex database relationships and application logic
+- **Database relationship mastery** - understanding multi-table dependencies and data integrity constraints
+- **Transaction safety and data integrity** - building defensive code with comprehensive rollback capabilities
+- **Hybrid programming approach** - using OOP for business logic integration, procedural for database operations
+- **Customer communication and trust-building** - managing expectations during high-impact data operations
+- **Engineering collaboration** - providing detailed analysis that led to permanent application-level fixes
+- **Production operations maturity** - building systems that enable team scaling without proportional headcount growth
+
+### Key Takeaways
 
 This repository demonstrates:
 
 1. **Production Engineering Experience** - Code that runs on real systems with real customer data
 2. **Safety-First Approach** - Transaction management, comprehensive logging, dry-run validation, rollback capabilities
-3. **Problem-Solving Ability** - Original algorithm design (fraud detection), complex multi-table operations
-4. **Iterative Improvement** - Scripts evolved through production use and edge case discovery
-5. **Business Impact** - Automated hundreds of hours of manual work, prevented data corruption, enabled fraud mitigation
-6. **Growth Trajectory** - Clear progression from guided work (2022) to independent complex systems (2024-2025)
+3. **Paradigm Flexibility** - Using OOP for business logic, procedural for database operations, choosing appropriately per task
+4. **Problem-Solving Ability** - Original algorithm design (fraud detection), complex multi-table operations
+5. **Iterative Improvement** - Scripts evolved through production use and edge case discovery
+6. **Business Impact** - Automated hundreds of hours of manual work, prevented data corruption, enabled fraud mitigation
+7. **Growth Trajectory** - Clear progression from guided work (2022) to independent complex systems (2024-2025)
 
-These scripts represent 2+ years of backend development work in a production SaaS environment, demonstrating the fundamentals of backend engineering: database operations, business logic implementation, transaction safety, error handling, and production debugging.
-
----
-
-## Code Availability
-
-Due to the proprietary nature of the Progress ABL codebase and customer data sensitivity, full source code for all scripts is not published in this repository. However, the detailed descriptions above provide comprehensive technical implementation information demonstrating the engineering principles and approaches used.
-
-**For interview discussions, I can provide:**
-- Detailed walkthroughs of algorithm design and implementation
-- Architecture diagrams showing database relationships
-- Anonymized code samples demonstrating key techniques
-- Discussion of specific technical decisions and trade-offs
-- Examples of edge case handling and iterative improvements
+**Want to see more?** Check out my other projects demonstrating modern tech stacks:
+- [GoalsTracker](http://github.com/michaelzrork/GoalsTracker) - C# / ASP.NET Core Razor Pages
+- [Rebrickable WebView](http://github.com/michaelzrork/Rebrickable_WebView) - Android / Kotlin
+- [Bag of Holding](http://github.com/michaelzrork/BagOfHolding) - Python / CustomTkinter
 
 ---
 
 ## Contact
 
 **Michael Rork**  
-Backend Engineer  
-michaelzrork@gmail.com  
-[LinkedIn](https://linkedin.com/in/michaelzrork) | [GitHub](https://github.com/michaelzrork)
+📧 michaelzrork@gmail.com  
+💼 [LinkedIn](http://linkedin.com/in/michaelzrork)  
+📍 South Burlington, VT
 
-Questions about these scripts or my backend engineering experience? Let's connect!
+Currently seeking Backend Engineer or Software Developer roles in Vermont or remote.
