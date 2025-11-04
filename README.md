@@ -10,7 +10,7 @@ Collection of production scripts written during my time as Operations Software S
 
 | Achievement | Impact |
 |-------------|--------|
-| **Fraud Detection System** | Deployed in 24 hours during active incident across 8+ organizations |
+| **Fraud Identification Algorithm** | Deployed in 24 hours during active incident across 8+ organizations |
 | **$1M Phantom Fees Recovery** | Resolved 7-year data corruption bug, zero data loss |
 | **Payment Refund Fix** | Corrected 10+ year household member allocation flaw |
 | **Automation Template** | 160+ deployments, zero unrecoverable incidents, 70% time reduction |
@@ -18,7 +18,7 @@ Collection of production scripts written during my time as Operations Software S
 ---
 
 ## Table of Contents
-- [Fraud Detection System](#fraud-detection-system)
+- [Fraud Identification Algorithm](#fraud-identification-algorithm)
 - [Data Corruption Cleanup - $1M Phantom Fees](#data-corruption-cleanup---1m-phantom-fees)
 - [Category/Fee Code Sync System](#categoryfee-code-sync-system)
 - [Household Member Payment Fix](#household-member-payment-fix)
@@ -30,20 +30,20 @@ Collection of production scripts written during my time as Operations Software S
 
 ---
 
-## Fraud Detection System
+## Fraud Identification Algorithm
 
 **Problem:** Active security incident - merchant accounts compromised, fraudulent transactions occurring across 8+ customer organizations. Payment gateway credentials exposed. Bad actors creating fake households to test stolen credit cards in real-time.
 
 **Approach:** 
-- Built pattern-matching detection system examining account creation patterns, email validation, name analysis, and transaction history
-- Developed configurable lookback period system built into filename (e.g., `InactivateBadActorHHs_Today-7.p`) as workaround for system limitation preventing direct user input
-- Created layered detection logic:
+- Developed fraud identification algorithm analyzing account creation patterns, transaction history, and cardholder validation
+- Created multi-criteria detection system with layered validation checks:
   - Email pattern analysis (gibberish domains, known bad actor addresses)
   - Name validation (detecting keyboard-mashing patterns like "asd", "fdg")
   - Birthday cross-referencing against known bad actor profiles
-  - Card holder name verification against household members
+  - Cardholder name verification against household members
   - Address validation (households with coordinates flagged as legitimate)
   - Transaction history analysis (internal vs. external payment methods)
+- Developed configurable lookback period system built into filename (e.g., `InactivateBadActorHHs_Today-7.p`) as workaround for system limitation preventing direct user input
 
 **Solution:**
 - Deployed detection system in 24 hours during active incident
